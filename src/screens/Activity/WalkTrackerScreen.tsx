@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../constants/theme';
 import MinnieAvatar from '../../components/Minnie/MinnieAvatar';
 import { MinnieState } from '../../types';
+import PedometerService from '../../services/PedometerService';
 
 export default function WalkTrackerScreen() {
     const navigation = useNavigation();
@@ -29,21 +30,38 @@ export default function WalkTrackerScreen() {
 
     useEffect(() => {
         let interval: NodeJS.Timeout | null = null;
+        let unsubscribe: (() => void) | null = null;
 
         if (isActive && !isPaused) {
+            PedometerService.startTracking();
+
+            // Subscribe to step updates
+            unsubscribe = PedometerService.addListener((currentSteps) => {
+                setSteps(currentSteps);
+            });
+
             interval = setInterval(() => {
                 setSeconds(s => s + 1);
-                // Simulate step counting (in real app, use pedometer)
-                setSteps(s => s + Math.floor(Math.random() * 3) + 1);
             }, 1000);
-        } else if (interval) {
-            clearInterval(interval);
+        } else {
+            if (interval) clearInterval(interval);
+            PedometerService.stopTracking(); // Or keep tracking? Usually stop for "session".
         }
 
         return () => {
             if (interval) clearInterval(interval);
+            if (unsubscribe) unsubscribe();
+            // We don't stop PedometerService here immediately to avoid losing state on re-render, 
+            // but we should if component unmounts? 
+            // Better to rely on "isActive" state management.
         };
     }, [isActive, isPaused]);
+
+    useEffect(() => {
+        return () => {
+            PedometerService.stopTracking();
+        };
+    }, []);
 
     // Update Minnie's encouragement based on progress
     useEffect(() => {

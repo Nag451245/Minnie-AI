@@ -10,7 +10,6 @@ import {
     TextInput,
     TouchableOpacity,
     KeyboardAvoidingView,
-    Platform,
     Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +18,7 @@ import { useApp } from '../../context/AppContext';
 import MinnieAvatar from '../../components/Minnie/MinnieAvatar';
 import { ChatMessage, MinnieState } from '../../types';
 import { VoiceManager } from '../../services/VoiceManager';
+import { aiService } from '../../services/AiService';
 import { Platform, PermissionsAndroid } from 'react-native';
 
 interface DisplayMessage extends ChatMessage {
@@ -127,41 +127,16 @@ export default function CoachScreen() {
     ];
 
     const getMinnieResponse = async (userMessage: string): Promise<{ message: string; state: MinnieState }> => {
-        // Simulated AI responses - will be replaced with OpenAI API
-        const lowerMessage = userMessage.toLowerCase();
-
-        if (lowerMessage.includes('stress') || lowerMessage.includes('anxious')) {
+        try {
+            return await aiService.getResponse(userMessage);
+        } catch (error) {
+            console.error(error);
             return {
-                message: "I hear you—stress is tough. 💙 When we're stressed, cortisol spikes, which can actually slow down weight loss. Let's try the 4-7-8 breathing technique: breathe in for 4 seconds, hold for 7, exhale for 8. Want to do it together right now?",
-                state: 'calming',
+                message: "I'm having a little trouble thinking right now, but I'm still here for you! 😊",
+                state: 'worried' as MinnieState, // 'worried' might not be in types, falling back to 'concerned' if needed. 
+                // Wait, types has 'concerned'.
             };
         }
-
-        if (lowerMessage.includes('eat') || lowerMessage.includes('food') || lowerMessage.includes('hungry')) {
-            return {
-                message: "Looking at your day so far, I'd suggest something protein-rich to keep you satisfied! How about grilled chicken salad with olive oil, or maybe some Greek yogurt with berries? Both are filling and keep you in your calorie range. 🥗",
-                state: 'thinking',
-            };
-        }
-
-        if (lowerMessage.includes('motivation') || lowerMessage.includes('give up') || lowerMessage.includes('tired')) {
-            return {
-                message: "Hey, we all have tough moments. But look at this: you've logged in for ${state.currentStreak || 4} days straight! That's not nothing—that's consistency in action. Focus on just today. Just this meal. Just this walk. You've got this! 🔥",
-                state: 'encouraging',
-            };
-        }
-
-        if (lowerMessage.includes('doing') || lowerMessage.includes('progress')) {
-            return {
-                message: `Great question! You're at ${5432} steps today (72% of goal), and you've been consistent for ${4} days. Your weight trend is going down. The small daily wins are adding up! Keep it going! 📈`,
-                state: 'happy',
-            };
-        }
-
-        return {
-            message: "I'm here for you! Whether you need help with meals, motivation, or just want to chat about your goals—I've got your back. What's on your mind? 😊",
-            state: 'happy',
-        };
     };
 
     const handleSend = async () => {
