@@ -33,6 +33,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Debug - Verify plugin directory
+        run: |
+          echo "=== Checking node_modules/@react-native/gradle-plugin ==="
+          ls -la node_modules/@react-native/gradle-plugin/ || echo "Directory not found"
+          echo "=== Contents of gradle-plugin ==="
+          ls -la node_modules/@react-native/gradle-plugin/*.gradle* || echo "No gradle files found"
+          cat node_modules/@react-native/gradle-plugin/settings.gradle.kts || echo "No settings.gradle.kts"
+      
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
