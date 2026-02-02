@@ -9,6 +9,12 @@ buildscript {
         kotlinVersion = "1.9.10"
     }
     repositories {
+        maven {
+            url("$rootDir/../node_modules/react-native/android")
+        }
+        maven {
+            url("$rootDir/../node_modules/@react-native/gradle-plugin/build/libs")
+        }
         google()
         mavenCentral()
     }
