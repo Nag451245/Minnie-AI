@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary brand color (Teal) -->
+    <color name="primary">#2EC4B6</color>
+    <color name="primaryDark">#1A8B82</color>
+    <color name="primaryLight">#E0F7F5</color>
+    
+    <!-- Secondary brand color (Coral) -->
+    <color name="secondary">#FF6B6B</color>
+    <color name="secondaryDark">#CC5555</color>
+    
+    <!-- Background colors -->
+    <color name="background">#FFFFFF</color>
+    <color name="backgroundSecondary">#F8F9FA</color>
+    
+    <!-- Accent colors -->
+    <color name="splashBackground">#2EC4B6</color>
+    
+    <!-- React Navigation color -->
+    <color name="white">#FFFFFF</color>
+</resources>

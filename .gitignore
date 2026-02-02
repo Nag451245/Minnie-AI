@@ -1,0 +1,39 @@
+# MacOS
+.DS_Store
+
+# React Native
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+
+# Android
+android/app/build/
+android/app/src/main/assets/index.android.bundle
+android/app/src/main/assets/index.android.bundle.map
+android/app/src/main/res/drawable-mdpi/
+android/app/src/main/res/drawable-hdpi/
+android/app/src/main/res/drawable-xhdpi/
+android/app/src/main/res/drawable-xxhdpi/
+android/app/src/main/res/drawable-xxxhdpi/
+android/app/src/main/res/raw/
+android/.gradle
+android/build
+android/local.properties
+android/*.iml
+android/.idea
+android/app/*.iml
+
+# iOS
+ios/Pods/
+ios/build/
+ios/*.xcworkspace
+ios/*.xcodeproj/project.xcworkspace
+ios/*.xcodeproj/xcuserdata
+
+# Bundle
+*.jsbundle
+
+# Editor
+.vscode/
+.idea/
