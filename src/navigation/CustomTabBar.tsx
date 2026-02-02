@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, Dimensions, Keyboard } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Shadows, Typography, Spacing, BorderRadius } from '../../constants/theme';
+import { Colors, Shadows, Typography, Spacing, BorderRadius } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
 
