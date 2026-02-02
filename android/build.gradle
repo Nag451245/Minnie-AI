@@ -9,19 +9,12 @@ buildscript {
         kotlinVersion = "1.9.10"
     }
     repositories {
-        maven {
-            url("$rootDir/../node_modules/react-native/android")
-        }
-        maven {
-            url("$rootDir/../node_modules/@react-native/gradle-plugin/build/libs")
-        }
         google()
         mavenCentral()
     }
     dependencies {
         classpath("com.android.tools.build:gradle:8.1.1")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-        classpath("com.facebook.react:react-native-gradle-plugin")
     }
 }
 
@@ -46,3 +39,5 @@ allprojects {
         maven { url 'https://www.jitpack.io' }
     }
 }
+
+apply plugin: "com.facebook.react.rootproject"

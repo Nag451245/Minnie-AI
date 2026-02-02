@@ -36,16 +36,18 @@ jobs:
       - name: Debug - Verify plugin directory
         run: |
           echo "=== Checking node_modules/@react-native/gradle-plugin ==="
-          ls -la node_modules/@react-native/gradle-plugin/ || echo "Directory not found"
-          echo "=== Contents of gradle-plugin ==="
-          ls -la node_modules/@react-native/gradle-plugin/*.gradle* || echo "No gradle files found"
-          cat node_modules/@react-native/gradle-plugin/settings.gradle.kts || echo "No settings.gradle.kts"
+          ls -la node_modules/@react-native/gradle-plugin/
+          echo "=== Build directory ==="
+          ls -la node_modules/@react-native/gradle-plugin/build/ || echo "No build directory"
       
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
       - name: Build Release APK
-        run: npx react-native build-android --mode=release
+        working-directory: android
+        run: |
+          ./gradlew assembleRelease --no-daemon \
+            --include-build ../node_modules/@react-native/gradle-plugin
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
