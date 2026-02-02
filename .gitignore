@@ -20,6 +20,8 @@ android/app/src/main/res/raw/
 android/.gradle
 android/build
 android/local.properties
+# android/key.properties  <-- Un-ignored for repo availability
+# android/app/*.keystore <-- Un-ignored for repo availability
 android/*.iml
 android/.idea
 android/app/*.iml

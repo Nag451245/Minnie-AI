@@ -41,9 +41,18 @@ def enableProguardInReleaseBuilds = false
 /**
  * Private key password for keystore signing (set in environment or gradle.properties)
  */
-def releaseStorePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-def releaseKeyAlias = System.getenv("KEY_ALIAS") ?: ""
-def releaseKeyPassword = System.getenv("KEY_PASSWORD") ?: ""
+def releaseStorePassword = System.getenv("KEYSTORE_PASSWORD")
+def releaseKeyAlias = System.getenv("KEY_ALIAS")
+def releaseKeyPassword = System.getenv("KEY_PASSWORD")
+
+def keystorePropertiesFile = rootProject.file("key.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    releaseStorePassword = keystoreProperties['storePassword']
+    releaseKeyAlias = keystoreProperties['keyAlias']
+    releaseKeyPassword = keystoreProperties['keyPassword']
+}
 
 android {
     ndkVersion rootProject.ext.ndkVersion
