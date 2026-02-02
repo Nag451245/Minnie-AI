@@ -88,6 +88,10 @@ android {
             debuggable false
         }
     }
+
+    packagingOptions {
+        pickFirst 'lib/**/libc++_shared.so'
+    }
 }
 
 dependencies {
