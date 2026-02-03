@@ -39,3 +39,6 @@ ios/*.xcodeproj/xcuserdata
 # Editor
 .vscode/
 .idea/
+
+# Local config (contains API keys - do NOT commit)
+config.local.json

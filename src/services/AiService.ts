@@ -1,6 +1,16 @@
 import { MinnieState } from '../types';
 import StorageService from './StorageService';
 
+// Try to load API key from local config file (gitignored)
+let DEFAULT_API_KEY = '';
+try {
+    // This will be bundled at build time - the config.local.json must exist
+    const localConfig = require('../../config.local.json');
+    DEFAULT_API_KEY = localConfig.OPENAI_API_KEY || '';
+} catch (e) {
+    console.log('[AiService] No local config found, will rely on user-configured key');
+}
+
 // Mock responses for fallback
 const MOCK_RESPONSES = [
     { keywords: ['stress', 'anxious', 'worry'], state: 'calming' as MinnieState, text: "I hear you—stress is tough. 💙 Let's try the 4-7-8 breathing technique: breathe in for 4s, hold for 7s, exhale for 8s." },
@@ -20,18 +30,25 @@ class AiService {
 
     /**
      * Initialize the service by loading the API key from storage
+     * Falls back to the built-in default API key if no user key is stored
      */
     async initialize(): Promise<void> {
         if (this.initialized) return;
         try {
             const storedKey = await StorageService.getApiKey();
             if (storedKey) {
+                console.log('[AiService] ✅ Using stored API key');
                 this.apiKey = storedKey;
+            } else {
+                console.log('[AiService] 🔑 Using default API key (GPT 5.2)');
+                this.apiKey = DEFAULT_API_KEY;
             }
             this.initialized = true;
         } catch (error) {
             console.error('Failed to initialize AI service:', error);
-            this.initialized = true; // Mark as initialized even on error to prevent retry loops
+            // Fall back to default key even on error
+            this.apiKey = DEFAULT_API_KEY;
+            this.initialized = true;
         }
     }
 
@@ -45,9 +62,11 @@ class AiService {
 
     /**
      * Check if API key is configured
+     * Always returns true after initialization since we have a default key
      */
     hasApiKey(): boolean {
-        return !!this.apiKey;
+        // Always have an API key available (user-configured or default)
+        return !!this.apiKey || !!DEFAULT_API_KEY;
     }
 
     async getResponse(userMessage: string): Promise<{ message: string; state: MinnieState }> {

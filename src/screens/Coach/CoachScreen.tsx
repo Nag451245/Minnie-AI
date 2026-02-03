@@ -225,8 +225,56 @@ export default function CoachScreen() {
         setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     };
 
-    const handleQuickResponse = (text: string) => {
-        setInputText(text);
+    const handleQuickResponse = async (text: string) => {
+        console.log('[CoachScreen] 🟢 Quick response tapped:', text);
+
+        if (!hasApiKey) {
+            console.warn('[CoachScreen] ⚠️ No API key - showing modal');
+            setShowApiKeyModal(true);
+            return;
+        }
+
+        if (isLoading) {
+            console.warn('[CoachScreen] ⚠️ Already loading, ignoring');
+            return;
+        }
+
+        // Create and send the message directly
+        const userMessage: DisplayMessage = {
+            id: Date.now(),
+            timestamp: Date.now(),
+            sender: 'user',
+            message: text,
+        };
+
+        setMessages(prev => [...prev, userMessage]);
+        setIsLoading(true);
+
+        // Scroll to bottom
+        setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        console.log('[CoachScreen] 🔄 Fetching response for quick action...');
+        const response = await getMinnieResponse(text);
+        console.log('[CoachScreen] ✅ Response received:', response);
+
+        const minnieMessage: DisplayMessage = {
+            id: Date.now() + 1,
+            timestamp: Date.now(),
+            sender: 'minnie',
+            message: response.message,
+            minnieAvatarState: response.state,
+        };
+
+        setMessages(prev => [...prev, minnieMessage]);
+        setIsLoading(false);
+
+        // Speak response
+        VoiceManager.speak(response.message);
+
+        setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     };
 
     const formatTime = (timestamp: number): string => {
@@ -306,65 +354,68 @@ export default function CoachScreen() {
                     )}
                 </ScrollView>
 
-                {/* Quick Responses */}
-                <View style={styles.quickResponses}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {quickResponses.map((resp, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={styles.quickResponseButton}
-                                onPress={() => handleQuickResponse(resp.text)}
-                            >
-                                <Text style={styles.quickResponseEmoji}>{resp.emoji}</Text>
-                                <Text style={styles.quickResponseText}>{resp.text}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
+                {/* Bottom Section - Wrapped for tab bar spacing */}
+                <View style={styles.bottomSection}>
+                    {/* Quick Responses */}
+                    <View style={styles.quickResponses}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            {quickResponses.map((resp, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={styles.quickResponseButton}
+                                    onPress={() => handleQuickResponse(resp.text)}
+                                >
+                                    <Text style={styles.quickResponseEmoji}>{resp.emoji}</Text>
+                                    <Text style={styles.quickResponseText}>{resp.text}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
 
-                {/* Input */}
-                <View style={[styles.inputContainer, !hasApiKey && styles.inputContainerDisabled]}>
-                    <TouchableOpacity
-                        style={[styles.voiceButton, isListening && styles.voiceButtonActive]}
-                        onPress={toggleListening}
-                        disabled={!hasApiKey}
-                    >
-                        <Text style={styles.voiceButtonText}>{isListening ? '🛑' : '🎙️'}</Text>
-                    </TouchableOpacity>
-                    <TextInput
-                        style={styles.input}
-                        placeholder={hasApiKey ? "Ask Minnie anything..." : "Configure AI key to chat"}
-                        placeholderTextColor={Colors.textTertiary}
-                        value={inputText}
-                        onChangeText={setInputText}
-                        multiline
-                        maxLength={500}
-                        editable={hasApiKey && !isLoading}
-                    />
-                    <TouchableOpacity
-                        style={[styles.sendButton, (!inputText.trim() || isLoading || !hasApiKey) && styles.sendButtonDisabled]}
-                        onPress={handleSend}
-                        disabled={!inputText.trim() || isLoading || !hasApiKey}
-                    >
-                        {isLoading ? (
-                            <ActivityIndicator size="small" color={Colors.textLight} />
-                        ) : (
-                            <Text style={styles.sendButtonText}>➤</Text>
-                        )}
-                    </TouchableOpacity>
-                </View>
+                    {/* Input */}
+                    <View style={[styles.inputContainer, !hasApiKey && styles.inputContainerDisabled]}>
+                        <TouchableOpacity
+                            style={[styles.voiceButton, isListening && styles.voiceButtonActive]}
+                            onPress={toggleListening}
+                            disabled={!hasApiKey}
+                        >
+                            <Text style={styles.voiceButtonText}>{isListening ? '🛑' : '🎙️'}</Text>
+                        </TouchableOpacity>
+                        <TextInput
+                            style={styles.input}
+                            placeholder={hasApiKey ? "Ask Minnie anything..." : "Configure AI key to chat"}
+                            placeholderTextColor={Colors.textTertiary}
+                            value={inputText}
+                            onChangeText={setInputText}
+                            multiline
+                            maxLength={500}
+                            editable={hasApiKey && !isLoading}
+                        />
+                        <TouchableOpacity
+                            style={[styles.sendButton, (!inputText.trim() || isLoading || !hasApiKey) && styles.sendButtonDisabled]}
+                            onPress={handleSend}
+                            disabled={!inputText.trim() || isLoading || !hasApiKey}
+                        >
+                            {isLoading ? (
+                                <ActivityIndicator size="small" color={Colors.textLight} />
+                            ) : (
+                                <Text style={styles.sendButtonText}>➤</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
 
-                {/* Setup Prompt */}
-                {!hasApiKey && (
-                    <TouchableOpacity
-                        style={styles.setupBanner}
-                        onPress={() => setShowApiKeyModal(true)}
-                    >
-                        <Text style={styles.setupIcon}>🔑</Text>
-                        <Text style={styles.setupText}>Tap to configure OpenAI API Key</Text>
-                        <Text style={styles.setupArrow}>→</Text>
-                    </TouchableOpacity>
-                )}
+                    {/* Setup Prompt */}
+                    {!hasApiKey && (
+                        <TouchableOpacity
+                            style={styles.setupBanner}
+                            onPress={() => setShowApiKeyModal(true)}
+                        >
+                            <Text style={styles.setupIcon}>🔑</Text>
+                            <Text style={styles.setupText}>Tap to configure OpenAI API Key</Text>
+                            <Text style={styles.setupArrow}>→</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
 
 
                 <ApiKeyModal
@@ -393,6 +444,10 @@ const styles = StyleSheet.create({
     },
     keyboardView: {
         flex: 1,
+    },
+    bottomSection: {
+        paddingBottom: Platform.OS === 'ios' ? 90 : 80, // Account for tab bar height
+        backgroundColor: Colors.background,
     },
     header: {
         flexDirection: 'row',
