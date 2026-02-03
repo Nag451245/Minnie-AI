@@ -50,8 +50,24 @@ export default function CoachScreen() {
     useEffect(() => {
         // Check API key on mount
         const checkApiKey = async () => {
+            console.log('[CoachScreen] 🔍 Checking for API key...');
             await aiService.initialize();
-            setHasApiKey(aiService.hasApiKey());
+            const hasKey = aiService.hasApiKey();
+
+            console.log('[CoachScreen] 🔑 Has API key:', hasKey);
+
+            setHasApiKey(hasKey);
+
+            // Auto-show modal if no API key configured
+            if (!hasKey) {
+                console.log('[CoachScreen] ⚠️ No API key found - auto-showing setup modal in 800ms');
+                setTimeout(() => {
+                    console.log('[CoachScreen] 📱 Showing API key setup modal');
+                    setShowApiKeyModal(true);
+                }, 800); // Delay for smooth UX
+            } else {
+                console.log('[CoachScreen] ✅ API key configured - buttons enabled');
+            }
         };
         checkApiKey();
     }, []);

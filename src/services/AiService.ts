@@ -79,7 +79,7 @@ class AiService {
                     'Authorization': `Bearer ${this.apiKey}`,
                 },
                 body: JSON.stringify({
-                    model: "gpt-3.5-turbo",
+                    model: "gpt-5.2-turbo",
                     messages: [
                         {
                             role: "system",
