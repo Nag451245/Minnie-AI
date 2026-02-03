@@ -63,27 +63,7 @@ const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => 
                     });
                 };
 
-                // Render the floating "Log" button specially
-                if (isLogButton) {
-                    return (
-                        <View key={route.key} style={styles.logButtonWrapper} pointerEvents="box-none">
-                            <TouchableOpacity
-                                accessibilityRole="button"
-                                accessibilityState={isFocused ? { selected: true } : {}}
-                                accessibilityLabel={options.tabBarAccessibilityLabel || "Log Activity"}
-                                testID={options.tabBarTestID}
-                                onPress={onPress}
-                                onLongPress={onLongPress}
-                                style={styles.logButtonErrorCorrection}
-                                activeOpacity={0.9}
-                            >
-                                <View style={styles.logButtonInner}>
-                                    <Text style={styles.logButtonIcon}>+</Text>
-                                </View>
-                            </TouchableOpacity>
-                        </View>
-                    );
-                }
+                // Log tab is now a regular tab, no special rendering needed
 
                 // Render standard tab strings/icons
                 // Logic to get icon from options or default
@@ -95,6 +75,7 @@ const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => 
                 let iconText = '';
                 if (route.name === 'Home') iconText = '🏠';
                 else if (route.name === 'Activity') iconText = '👟';
+                else if (route.name === 'Log') iconText = '➕'; // Regular tab icon
                 else if (route.name === 'Coach') iconText = '💬';
                 else if (route.name === 'Progress') iconText = '📊';
                 else if (route.name === 'Settings') iconText = '⚙️';
@@ -169,36 +150,7 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.primary,
         marginTop: 4,
     },
-    logButtonWrapper: {
-        width: 70, // Fixed width for the center button area
-        height: '100%',
-        justifyContent: 'flex-start', // Align to top of tab bar to allow overflow
-        alignItems: 'center',
-        zIndex: 10,
-        marginTop: -30, // Pull it up
-    },
-    logButtonErrorCorrection: {
-        // This wrapper ensures the hit slop and layout are stable
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    logButtonInner: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: Colors.primary,
-        justifyContent: 'center',
-        alignItems: 'center',
-        ...Shadows.xl,
-        borderWidth: 4,
-        borderColor: Colors.background,
-    },
-    logButtonIcon: {
-        fontSize: 32,
-        color: '#FFFFFF',
-        fontWeight: 'bold',
-        marginTop: -2,
-    },
+    // Removed FAB-specific styles - Log is now a regular tab
 });
 
 export default CustomTabBar;

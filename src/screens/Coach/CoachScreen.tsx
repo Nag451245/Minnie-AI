@@ -400,6 +400,7 @@ const styles = StyleSheet.create({
     },
     messagesContainer: {
         flex: 1,
+        paddingBottom: 70,
     },
     messagesContent: {
         padding: Spacing.base,

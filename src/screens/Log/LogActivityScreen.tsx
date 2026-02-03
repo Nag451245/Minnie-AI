@@ -15,6 +15,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Colors, Typography, Spacing, BorderRadius, Shadows, ActivityTypes } from '../../constants/theme';
 import MinnieAvatar from '../../components/Minnie/MinnieAvatar';
 import { RootStackParamList, ActivityType } from '../../types';
+import StorageService from '../../services/StorageService';
 
 type LogActivityRouteProp = RouteProp<RootStackParamList, 'LogActivity'>;
 
@@ -41,19 +42,35 @@ export default function LogActivityScreen() {
         return Math.round(activityInfo.met * intensityMultiplier * weight * hours);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!selectedActivity || !duration) return;
 
-        // TODO: Save to database
-        console.log('Saving activity:', {
+        const activity = {
             type: selectedActivity,
             duration: parseInt(duration, 10),
             intensity,
             calories: calculateCalories(),
             notes,
-        });
+            timestamp: Date.now(),
+            date: new Date().toISOString().split('T')[0],
+        };
 
-        navigation.goBack();
+        try {
+            console.log('[LogActivity] Saving activity:', activity);
+
+            // Get existing logs and add new one
+            const existingLogs = await StorageService.getDailyLogs();
+            const updatedLogs = [...existingLogs, activity];
+
+            await StorageService.saveDailyLogs(updatedLogs);
+
+            console.log('[LogActivity] ✅ Activity saved successfully');
+            console.log('[LogActivity] Total logs now:', updatedLogs.length);
+
+            navigation.goBack();
+        } catch (error) {
+            console.error('[LogActivity] ❌ Error saving activity:', error);
+        }
     };
 
     const isValid = selectedActivity && duration && parseInt(duration, 10) > 0;
