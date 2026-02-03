@@ -1,7 +1,7 @@
 /**
  * Profile Screen - Settings and user info
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -16,11 +16,22 @@ import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../consta
 import { useApp } from '../../context/AppContext';
 import MinnieAvatar from '../../components/Minnie/MinnieAvatar';
 import StorageService from '../../services/StorageService';
+import ApiKeyModal from '../../components/ApiKeyModal';
+import { aiService } from '../../services/AiService';
 
 export default function ProfileScreen() {
     const { state, dispatch } = useApp();
     const [activityReminders, setActivityReminders] = useState(true);
     const [waterReminders, setWaterReminders] = useState(true);
+    const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+    const [hasApiKey, setHasApiKey] = useState(false);
+
+    // Check if API key is configured on mount
+    useEffect(() => {
+        aiService.initialize().then(() => {
+            setHasApiKey(aiService.hasApiKey());
+        });
+    }, []);
 
     const handleResetOnboarding = async () => {
         Alert.alert(
@@ -174,6 +185,23 @@ export default function ProfileScreen() {
                             <Text style={styles.changeButtonText}>Edit</Text>
                         </TouchableOpacity>
                     </View>
+
+                    <View style={styles.settingItem}>
+                        <View style={styles.settingInfo}>
+                            <Text style={styles.settingLabel}>🤖 AI Coach</Text>
+                            <Text style={styles.settingDesc}>
+                                {hasApiKey ? 'OpenAI powered ✓' : 'Not configured'}
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            style={[styles.changeButton, hasApiKey && styles.configuredButton]}
+                            onPress={() => setShowApiKeyModal(true)}
+                        >
+                            <Text style={[styles.changeButtonText, hasApiKey && styles.configuredButtonText]}>
+                                {hasApiKey ? 'Reconfigure' : 'Setup'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* About */}
@@ -202,6 +230,13 @@ export default function ProfileScreen() {
                     <MinnieAvatar state="happy" size="medium" showMessage message="I'm always here to help! 💙" animated />
                 </View>
             </ScrollView>
+
+            {/* API Key Configuration Modal */}
+            <ApiKeyModal
+                visible={showApiKeyModal}
+                onClose={() => setShowApiKeyModal(false)}
+                onSaved={() => setHasApiKey(true)}
+            />
         </SafeAreaView>
     );
 }
@@ -443,5 +478,12 @@ const styles = StyleSheet.create({
     minnieFooter: {
         alignItems: 'center',
         paddingVertical: Spacing.xl,
+    },
+    configuredButton: {
+        backgroundColor: Colors.success,
+        borderWidth: 0,
+    },
+    configuredButtonText: {
+        color: Colors.textLight,
     },
 });

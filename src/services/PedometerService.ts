@@ -1,27 +1,49 @@
+/**
+ * Pedometer Service - Unified step tracking using native hardware sensor
+ * 
+ * Uses Android's TYPE_STEP_COUNTER hardware sensor via native module,
+ * with fallback to accelerometer-based detection if unavailable.
+ */
+import { NativeModules, NativeEventEmitter, Platform, PermissionsAndroid, Alert } from 'react-native';
 import { accelerometer, setUpdateIntervalForType, SensorTypes } from 'react-native-sensors';
-import { map, filter } from 'rxjs/operators';
-import { Platform, PermissionsAndroid, Alert } from 'react-native';
+import { map } from 'rxjs/operators';
 import StorageService from './StorageService';
 
-// Improved step detection parameters
-const STEP_THRESHOLD = 1.15; // Slightly lower threshold for better sensitivity
-const STEP_UPPER_THRESHOLD = 2.5; // Upper bound to filter out sharp movements
-const DELAY_BETWEEN_STEPS = 250; // ms - minimum time between steps
+// Native module bridge
+const { StepCounterModule } = NativeModules;
+
+// Create event emitter for native step events
+const stepCounterEmitter = StepCounterModule
+    ? new NativeEventEmitter(StepCounterModule)
+    : null;
+
+// Accelerometer step detection parameters (fallback)
+const STEP_THRESHOLD = 1.15;
+const STEP_UPPER_THRESHOLD = 2.5;
+const DELAY_BETWEEN_STEPS = 250;
 
 class PedometerService {
-    private subscription: any = null;
-    private lastStepTime: number = 0;
-    private lastMagnitude: number = 1;
-    private isRising: boolean = false;
+    // State
     private listeners: ((steps: number) => void)[] = [];
     private stepsFromSession: number = 0;
     private totalDailySteps: number = 0;
     private initialized: boolean = false;
     private currentDate: string = '';
     private permissionGranted: boolean = false;
+    private isTracking: boolean = false;
+
+    // Native vs fallback tracking
+    private useNativeSensor: boolean = false;
+    private nativeSubscription: any = null;
+
+    // Fallback (accelerometer) tracking
+    private accelerometerSubscription: any = null;
+    private lastStepTime: number = 0;
+    private lastMagnitude: number = 1;
+    private isRising: boolean = false;
 
     constructor() {
-        setUpdateIntervalForType(SensorTypes.accelerometer, 50); // 50ms for better resolution
+        setUpdateIntervalForType(SensorTypes.accelerometer, 50);
         this.initializeSteps();
     }
 
@@ -35,6 +57,19 @@ class PedometerService {
             const today = new Date().toISOString().split('T')[0];
             this.currentDate = today;
             this.totalDailySteps = await StorageService.getDailySteps(today);
+
+            // Check if native sensor is available
+            if (Platform.OS === 'android' && StepCounterModule) {
+                try {
+                    const availability = await StepCounterModule.isStepCounterAvailable();
+                    this.useNativeSensor = availability.available;
+                    console.log('Native step counter available:', this.useNativeSensor);
+                } catch (e) {
+                    console.log('Native step counter check failed:', e);
+                    this.useNativeSensor = false;
+                }
+            }
+
             this.initialized = true;
         } catch (error) {
             console.error('Failed to initialize steps:', error);
@@ -51,37 +86,18 @@ class PedometerService {
         if (this.currentDate && this.currentDate !== today) {
             // New day - reset daily steps
             this.totalDailySteps = 0;
+            this.stepsFromSession = 0;
             this.currentDate = today;
+
+            // Reset native sensor baseline if using it
+            if (this.useNativeSensor && StepCounterModule) {
+                StepCounterModule.resetSteps().catch(() => { });
+            }
         }
-    }
-
-    startTracking(): void {
-        if (this.subscription) return;
-
-        // Always try to start - permission should be requested separately
-        this.stepsFromSession = 0;
-        this.lastStepTime = Date.now();
-        this.lastMagnitude = 1;
-        this.isRising = false;
-        this.checkDateChange();
-
-        this.subscription = accelerometer
-            .pipe(
-                map(({ x, y, z }) => Math.sqrt(x * x + y * y + z * z))
-            )
-            .subscribe({
-                next: (magnitude) => {
-                    this.processAcceleration(magnitude);
-                },
-                error: (error) => {
-                    console.log('The accelerometer sensor is not available:', error);
-                }
-            });
     }
 
     /**
      * Request ACTIVITY_RECOGNITION permission for Android 10+
-     * Returns true if permission granted, false otherwise
      */
     async requestPermission(): Promise<boolean> {
         if (Platform.OS !== 'android') {
@@ -98,39 +114,36 @@ class PedometerService {
                         title: 'Step Tracking Permission',
                         message: 'Minnie needs permission to track your steps and activity throughout the day. This helps provide accurate health insights and daily challenges.',
                         buttonNeutral: 'Ask Me Later',
-                        buttonNegative: 'Deny',
-                        buttonPositive: 'Allow',
+                        buttonNegative: 'Cancel',
+                        buttonPositive: 'OK',
                     }
                 );
 
                 if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-                    console.log('Activity recognition permission granted');
                     this.permissionGranted = true;
                     return true;
-                } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
-                    // User permanently denied - show guidance
+                }
+
+                if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
                     Alert.alert(
                         'Permission Required',
-                        'Step tracking is disabled. To enable it, please go to Settings > Apps > Minnie AI > Permissions and enable "Physical Activity".',
+                        'Step tracking requires activity recognition permission. Please enable it in Settings → Apps → Minnie AI → Permissions.',
                         [{ text: 'OK' }]
                     );
-                    this.permissionGranted = false;
-                    return false;
-                } else {
-                    console.log('Activity recognition permission denied');
-                    this.permissionGranted = false;
-                    return false;
                 }
+
+                this.permissionGranted = false;
+                return false;
             } catch (err) {
-                console.error('Error requesting activity recognition permission:', err);
+                console.error('Permission request error:', err);
                 this.permissionGranted = false;
                 return false;
             }
-        } else {
-            // Below Android 10, permission is granted at install time
-            this.permissionGranted = true;
-            return true;
         }
+
+        // Below Android 10, permission is granted automatically
+        this.permissionGranted = true;
+        return true;
     }
 
     /**
@@ -141,57 +154,131 @@ class PedometerService {
     }
 
     /**
-     * Check current permission status without requesting
+     * Start step tracking (uses native sensor if available)
      */
-    async checkPermission(): Promise<boolean> {
-        if (Platform.OS !== 'android') {
-            return true;
+    async startTracking(): Promise<void> {
+        if (this.isTracking) return;
+
+        // Ensure initialized
+        await this.initializeSteps();
+        this.checkDateChange();
+
+        if (this.useNativeSensor && StepCounterModule) {
+            await this.startNativeTracking();
+        } else {
+            this.startAccelerometerTracking();
         }
 
-        if (Platform.Version >= 29) {
-            const granted = await PermissionsAndroid.check(
-                PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION
-            );
-            this.permissionGranted = granted;
-            return granted;
-        }
-
-        return true;
+        this.isTracking = true;
     }
 
     /**
-     * Improved step detection using peak detection algorithm
+     * Start tracking using native hardware step counter
+     */
+    private async startNativeTracking(): Promise<void> {
+        try {
+            // Subscribe to native step events
+            if (stepCounterEmitter) {
+                this.nativeSubscription = stepCounterEmitter.addListener(
+                    'StepCounterUpdate',
+                    (steps: number) => {
+                        this.stepsFromSession = steps;
+                        this.totalDailySteps = this.stepsFromSession;
+                        this.notifyListeners();
+                        this.saveTodaySteps();
+                    }
+                );
+            }
+
+            // Start native tracking
+            await StepCounterModule.startTracking();
+            console.log('Native step tracking started');
+        } catch (error) {
+            console.error('Native tracking failed, falling back to accelerometer:', error);
+            this.useNativeSensor = false;
+            this.startAccelerometerTracking();
+        }
+    }
+
+    /**
+     * Start tracking using accelerometer (fallback)
+     */
+    private startAccelerometerTracking(): void {
+        this.stepsFromSession = 0;
+        this.lastStepTime = Date.now();
+        this.lastMagnitude = 1;
+        this.isRising = false;
+
+        this.accelerometerSubscription = accelerometer
+            .pipe(
+                map(({ x, y, z }) => Math.sqrt(x * x + y * y + z * z))
+            )
+            .subscribe({
+                next: (magnitude) => {
+                    this.processAcceleration(magnitude);
+                },
+                error: (error) => {
+                    console.log('Accelerometer not available:', error);
+                }
+            });
+
+        console.log('Accelerometer step tracking started (fallback)');
+    }
+
+    /**
+     * Process accelerometer data to detect steps
      */
     private processAcceleration(magnitude: number): void {
         const now = Date.now();
 
-        // Detect peaks using rising/falling pattern
+        // Detect rising edge (step starts)
         if (magnitude > this.lastMagnitude) {
             this.isRising = true;
-        } else if (this.isRising && magnitude < this.lastMagnitude) {
-            // We just passed a peak
-            this.isRising = false;
+        }
 
-            // Check if peak is within valid step range
-            if (this.lastMagnitude > STEP_THRESHOLD &&
+        // Detect peak (step detected)
+        if (this.isRising && magnitude < this.lastMagnitude) {
+            if (
+                this.lastMagnitude > STEP_THRESHOLD &&
                 this.lastMagnitude < STEP_UPPER_THRESHOLD &&
-                (now - this.lastStepTime) > DELAY_BETWEEN_STEPS) {
-
-                this.lastStepTime = now;
+                now - this.lastStepTime > DELAY_BETWEEN_STEPS
+            ) {
                 this.stepsFromSession++;
                 this.totalDailySteps++;
+                this.lastStepTime = now;
                 this.notifyListeners();
+
+                // Save every 10 steps
+                if (this.stepsFromSession % 10 === 0) {
+                    this.saveTodaySteps();
+                }
             }
+            this.isRising = false;
         }
 
         this.lastMagnitude = magnitude;
     }
 
-    stopTracking(): void {
-        if (this.subscription) {
-            this.subscription.unsubscribe();
-            this.subscription = null;
+    /**
+     * Stop step tracking
+     */
+    async stopTracking(): Promise<void> {
+        if (this.nativeSubscription) {
+            this.nativeSubscription.remove();
+            this.nativeSubscription = null;
+
+            if (StepCounterModule) {
+                await StepCounterModule.stopTracking().catch(() => { });
+            }
         }
+
+        if (this.accelerometerSubscription) {
+            this.accelerometerSubscription.unsubscribe();
+            this.accelerometerSubscription = null;
+        }
+
+        this.isTracking = false;
+        await this.saveTodaySteps();
     }
 
     /**
@@ -213,7 +300,6 @@ class PedometerService {
      */
     async saveTodaySteps(): Promise<void> {
         try {
-            this.checkDateChange();
             const today = new Date().toISOString().split('T')[0];
             await StorageService.setDailySteps(today, this.totalDailySteps);
         } catch (error) {
@@ -228,6 +314,7 @@ class PedometerService {
         this.stepsFromSession += count;
         this.totalDailySteps += count;
         this.notifyListeners();
+        this.saveTodaySteps();
     }
 
     /**
@@ -235,8 +322,12 @@ class PedometerService {
      */
     resetSession(): void {
         this.stepsFromSession = 0;
+        this.lastStepTime = Date.now();
     }
 
+    /**
+     * Add step count listener
+     */
     addListener(callback: (steps: number) => void): () => void {
         this.listeners.push(callback);
         return () => {
@@ -244,8 +335,25 @@ class PedometerService {
         };
     }
 
+    /**
+     * Notify all listeners of step updates
+     */
     private notifyListeners(): void {
-        this.listeners.forEach(l => l(this.stepsFromSession));
+        this.listeners.forEach(l => l(this.totalDailySteps));
+    }
+
+    /**
+     * Check if native step counter is available
+     */
+    isNativeSensorAvailable(): boolean {
+        return this.useNativeSensor;
+    }
+
+    /**
+     * Check if currently tracking
+     */
+    isCurrentlyTracking(): boolean {
+        return this.isTracking;
     }
 }
 

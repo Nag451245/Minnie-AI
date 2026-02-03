@@ -11,6 +11,7 @@ import {
     TouchableOpacity,
     KeyboardAvoidingView,
     Animated,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../constants/theme';
@@ -20,6 +21,7 @@ import { ChatMessage, MinnieState } from '../../types';
 import { VoiceManager } from '../../services/VoiceManager';
 import { aiService } from '../../services/AiService';
 import { Platform, PermissionsAndroid } from 'react-native';
+import ApiKeyModal from '../../components/ApiKeyModal';
 
 interface DisplayMessage extends ChatMessage {
     isTyping?: boolean;
@@ -42,6 +44,17 @@ export default function CoachScreen() {
 
     const [isListening, setIsListening] = useState(false);
     const typingDots = useRef(new Animated.Value(0)).current;
+    const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+    const [hasApiKey, setHasApiKey] = useState(false);
+
+    useEffect(() => {
+        // Check API key on mount
+        const checkApiKey = async () => {
+            await aiService.initialize();
+            setHasApiKey(aiService.hasApiKey());
+        };
+        checkApiKey();
+    }, []);
 
     useEffect(() => {
         // Setup Voice Callbacks
@@ -127,14 +140,20 @@ export default function CoachScreen() {
     ];
 
     const getMinnieResponse = async (userMessage: string): Promise<{ message: string; state: MinnieState }> => {
+        if (!hasApiKey) {
+            return {
+                message: "I need a little help to think clearly! Please configure my AI brain in the settings. 🧠✨",
+                state: 'concerned',
+            };
+        }
+
         try {
             return await aiService.getResponse(userMessage);
         } catch (error) {
             console.error(error);
             return {
                 message: "I'm having a little trouble thinking right now, but I'm still here for you! 😊",
-                state: 'worried' as MinnieState, // 'worried' might not be in types, falling back to 'concerned' if needed. 
-                // Wait, types has 'concerned'.
+                state: 'worried' as MinnieState,
             };
         }
     };
@@ -278,32 +297,66 @@ export default function CoachScreen() {
                 </View>
 
                 {/* Input */}
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, !hasApiKey && styles.inputContainerDisabled]}>
                     <TouchableOpacity
                         style={[styles.voiceButton, isListening && styles.voiceButtonActive]}
                         onPress={toggleListening}
+                        disabled={!hasApiKey}
                     >
                         <Text style={styles.voiceButtonText}>{isListening ? '🛑' : '🎙️'}</Text>
                     </TouchableOpacity>
                     <TextInput
                         style={styles.input}
-                        placeholder="Ask Minnie anything..."
+                        placeholder={hasApiKey ? "Ask Minnie anything..." : "Configure AI key to chat"}
                         placeholderTextColor={Colors.textTertiary}
                         value={inputText}
                         onChangeText={setInputText}
                         multiline
                         maxLength={500}
+                        editable={hasApiKey && !isLoading}
                     />
                     <TouchableOpacity
-                        style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+                        style={[styles.sendButton, (!inputText.trim() || isLoading || !hasApiKey) && styles.sendButtonDisabled]}
                         onPress={handleSend}
-                        disabled={!inputText.trim() || isLoading}
+                        disabled={!inputText.trim() || isLoading || !hasApiKey}
                     >
-                        <Text style={styles.sendButtonText}>➤</Text>
+                        {isLoading ? (
+                            <ActivityIndicator size="small" color={Colors.textLight} />
+                        ) : (
+                            <Text style={styles.sendButtonText}>➤</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
+
+                {/* Setup Prompt */}
+                {!hasApiKey && (
+                    <TouchableOpacity
+                        style={styles.setupBanner}
+                        onPress={() => setShowApiKeyModal(true)}
+                    >
+                        <Text style={styles.setupIcon}>🔑</Text>
+                        <Text style={styles.setupText}>Tap to configure OpenAI API Key</Text>
+                        <Text style={styles.setupArrow}>→</Text>
+                    </TouchableOpacity>
+                )}
+
+
+                <ApiKeyModal
+                    visible={showApiKeyModal}
+                    onClose={() => setShowApiKeyModal(false)}
+                    onSaved={() => {
+                        setHasApiKey(true);
+                        setMessages(prev => [...prev, {
+                            id: Date.now(),
+                            timestamp: Date.now(),
+                            sender: 'minnie',
+                            message: "Yay! My brain is connected! I'm ready to help you on your journey! 🚀",
+                            minnieAvatarState: 'happy'
+                        }]);
+                    }}
+                />
             </KeyboardAvoidingView>
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }
 
@@ -472,5 +525,34 @@ const styles = StyleSheet.create({
     },
     voiceButtonText: {
         fontSize: 20,
+    },
+    inputContainerDisabled: {
+        opacity: 0.7,
+        backgroundColor: Colors.backgroundSecondary,
+    },
+    setupBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Colors.primaryLight,
+        padding: Spacing.md,
+        borderRadius: BorderRadius.lg,
+        margin: Spacing.base,
+        marginTop: 0,
+    },
+    setupIcon: {
+        fontSize: Typography.fontSize.lg,
+        marginRight: Spacing.md,
+        color: Colors.textPrimary,
+    },
+    setupText: {
+        flex: 1,
+        fontSize: Typography.fontSize.sm,
+        fontWeight: Typography.fontWeight.medium,
+        color: Colors.primaryDark,
+    },
+    setupArrow: {
+        fontSize: Typography.fontSize.lg,
+        color: Colors.primaryDark,
+        fontWeight: Typography.fontWeight.bold,
     },
 });
