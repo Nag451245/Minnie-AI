@@ -110,24 +110,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
             // Load today's steps from storage
             const today = new Date().toISOString().split('T')[0];
             const todaySteps = await StorageService.getDailySteps(today);
+            const stepGoal = user?.stepGoal || 7500;
 
-            if (todaySteps > 0) {
-                const stepGoal = user?.stepGoal || 7500;
-                dispatch({
-                    type: 'SET_TODAY_LOG',
-                    payload: {
-                        date: today,
-                        steps: todaySteps,
-                        stepGoal: stepGoal,
-                        challengeCompleted: todaySteps >= stepGoal,
-                        waterIntake: 0,
-                        mood: undefined,
-                        weight: user?.currentWeight,
-                        sleepQuality: undefined,
-                        sleepHours: undefined,
-                    }
-                });
-            }
+            // ALWAYS initialize todayLog - this is critical for water tracking to work
+            dispatch({
+                type: 'SET_TODAY_LOG',
+                payload: {
+                    date: today,
+                    steps: todaySteps,
+                    stepGoal: stepGoal,
+                    challengeCompleted: todaySteps >= stepGoal,
+                    waterIntake: 0,
+                    mood: undefined,
+                    weight: user?.currentWeight,
+                    sleepQuality: undefined,
+                    sleepHours: undefined,
+                }
+            });
 
             dispatch({ type: 'SET_LOADING', payload: false });
         } catch (error) {
@@ -163,10 +162,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    // Helper: Update water
+    // Helper: Update water - now handles null todayLog properly
     const updateWater = (amount: number) => {
-        const currentWater = state.todayLog?.waterIntake || 0;
-        dispatch({ type: 'UPDATE_TODAY_LOG', payload: { waterIntake: currentWater + amount } });
+        const today = new Date().toISOString().split('T')[0];
+
+        if (!state.todayLog) {
+            // Create new log if it doesn't exist
+            const stepGoal = state.user?.stepGoal || 7500;
+            dispatch({
+                type: 'SET_TODAY_LOG',
+                payload: {
+                    date: today,
+                    steps: 0,
+                    stepGoal: stepGoal,
+                    challengeCompleted: false,
+                    waterIntake: amount,
+                    mood: undefined,
+                    weight: state.user?.currentWeight,
+                    sleepQuality: undefined,
+                    sleepHours: undefined,
+                }
+            });
+        } else {
+            const currentWater = state.todayLog.waterIntake || 0;
+            dispatch({ type: 'UPDATE_TODAY_LOG', payload: { waterIntake: currentWater + amount } });
+        }
     };
 
     // Helper: Log weight

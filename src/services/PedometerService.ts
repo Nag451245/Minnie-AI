@@ -1,5 +1,6 @@
 import { accelerometer, setUpdateIntervalForType, SensorTypes } from 'react-native-sensors';
 import { map, filter } from 'rxjs/operators';
+import { Platform, PermissionsAndroid, Alert } from 'react-native';
 import StorageService from './StorageService';
 
 // Improved step detection parameters
@@ -17,6 +18,7 @@ class PedometerService {
     private totalDailySteps: number = 0;
     private initialized: boolean = false;
     private currentDate: string = '';
+    private permissionGranted: boolean = false;
 
     constructor() {
         setUpdateIntervalForType(SensorTypes.accelerometer, 50); // 50ms for better resolution
@@ -56,6 +58,7 @@ class PedometerService {
     startTracking(): void {
         if (this.subscription) return;
 
+        // Always try to start - permission should be requested separately
         this.stepsFromSession = 0;
         this.lastStepTime = Date.now();
         this.lastMagnitude = 1;
@@ -74,6 +77,86 @@ class PedometerService {
                     console.log('The accelerometer sensor is not available:', error);
                 }
             });
+    }
+
+    /**
+     * Request ACTIVITY_RECOGNITION permission for Android 10+
+     * Returns true if permission granted, false otherwise
+     */
+    async requestPermission(): Promise<boolean> {
+        if (Platform.OS !== 'android') {
+            this.permissionGranted = true;
+            return true;
+        }
+
+        // Android 10 (API 29) and above require runtime permission
+        if (Platform.Version >= 29) {
+            try {
+                const granted = await PermissionsAndroid.request(
+                    PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
+                    {
+                        title: 'Step Tracking Permission',
+                        message: 'Minnie needs permission to track your steps and activity throughout the day. This helps provide accurate health insights and daily challenges.',
+                        buttonNeutral: 'Ask Me Later',
+                        buttonNegative: 'Deny',
+                        buttonPositive: 'Allow',
+                    }
+                );
+
+                if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+                    console.log('Activity recognition permission granted');
+                    this.permissionGranted = true;
+                    return true;
+                } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+                    // User permanently denied - show guidance
+                    Alert.alert(
+                        'Permission Required',
+                        'Step tracking is disabled. To enable it, please go to Settings > Apps > Minnie AI > Permissions and enable "Physical Activity".',
+                        [{ text: 'OK' }]
+                    );
+                    this.permissionGranted = false;
+                    return false;
+                } else {
+                    console.log('Activity recognition permission denied');
+                    this.permissionGranted = false;
+                    return false;
+                }
+            } catch (err) {
+                console.error('Error requesting activity recognition permission:', err);
+                this.permissionGranted = false;
+                return false;
+            }
+        } else {
+            // Below Android 10, permission is granted at install time
+            this.permissionGranted = true;
+            return true;
+        }
+    }
+
+    /**
+     * Check if permission has been granted
+     */
+    hasPermission(): boolean {
+        return this.permissionGranted;
+    }
+
+    /**
+     * Check current permission status without requesting
+     */
+    async checkPermission(): Promise<boolean> {
+        if (Platform.OS !== 'android') {
+            return true;
+        }
+
+        if (Platform.Version >= 29) {
+            const granted = await PermissionsAndroid.check(
+                PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION
+            );
+            this.permissionGranted = granted;
+            return granted;
+        }
+
+        return true;
     }
 
     /**

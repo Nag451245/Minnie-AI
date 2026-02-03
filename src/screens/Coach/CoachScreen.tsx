@@ -422,6 +422,7 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
         backgroundColor: Colors.background,
         padding: Spacing.md,
+        paddingBottom: Spacing.lg, // Extra padding to ensure visibility above tab bar
         borderTopWidth: 1,
         borderTopColor: Colors.border,
     },

@@ -32,7 +32,14 @@ export default function WalkTrackerScreen() {
         let interval: NodeJS.Timeout | null = null;
         let unsubscribe: (() => void) | null = null;
 
-        if (isActive && !isPaused) {
+        const startTracking = async () => {
+            // Request permission first (for Android 10+)
+            const hasPermission = await PedometerService.requestPermission();
+            if (!hasPermission) {
+                console.log('Step tracking permission denied');
+                return;
+            }
+
             PedometerService.startTracking();
 
             // Subscribe to step updates
@@ -43,17 +50,18 @@ export default function WalkTrackerScreen() {
             interval = setInterval(() => {
                 setSeconds(s => s + 1);
             }, 1000);
+        };
+
+        if (isActive && !isPaused) {
+            startTracking();
         } else {
             if (interval) clearInterval(interval);
-            PedometerService.stopTracking(); // Or keep tracking? Usually stop for "session".
+            PedometerService.stopTracking();
         }
 
         return () => {
             if (interval) clearInterval(interval);
             if (unsubscribe) unsubscribe();
-            // We don't stop PedometerService here immediately to avoid losing state on re-render, 
-            // but we should if component unmounts? 
-            // Better to rely on "isActive" state management.
         };
     }, [isActive, isPaused]);
 

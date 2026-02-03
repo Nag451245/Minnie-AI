@@ -23,34 +23,33 @@ export default function ActivityScreen() {
     const navigation = useNavigation<NavigationProp>();
     const { state } = useApp();
 
-    // Mock data - will be replaced with real tracking
+    // Real data from context - no more dummy data
+    const todaySteps = state.todayLog?.steps || 0;
+    const stepGoal = state.user?.stepGoal || 7500;
+    const distanceKm = state.todayLog?.distanceKm || (todaySteps * 0.000762); // ~762mm per step average
+    const activeMinutes = state.todayLog?.activeMinutes || Math.round(todaySteps / 100); // rough estimate
+    const caloriesBurned = state.todayLog?.caloriesBurned || Math.round(todaySteps * 0.04); // rough estimate
+
     const activityData = {
-        steps: 5432,
-        stepGoal: state.user?.stepGoal || 7500,
-        distance: 4.14,
-        activeMinutes: 45,
-        caloriesBurned: 210,
-        lastMovement: '5 mins ago',
-        hourlySteps: [
-            { hour: '6AM', steps: 120 },
-            { hour: '7AM', steps: 890 },
-            { hour: '8AM', steps: 1200 },
-            { hour: '9AM', steps: 450 },
-            { hour: '10AM', steps: 320 },
-            { hour: '11AM', steps: 280 },
-            { hour: '12PM', steps: 650 },
-            { hour: '1PM', steps: 520 },
-            { hour: '2PM', steps: 100 },
-            { hour: '3PM', steps: 400 },
-            { hour: '4PM', steps: 502 },
-        ],
+        steps: todaySteps,
+        stepGoal: stepGoal,
+        distance: Number(distanceKm.toFixed(2)),
+        activeMinutes: activeMinutes,
+        caloriesBurned: caloriesBurned,
+        lastMovement: todaySteps > 0 ? 'recently' : 'no activity yet',
+        // Empty hourly data - will be populated when real tracking is implemented
+        hourlySteps: [] as { hour: string; steps: number }[],
     };
 
-    const stepProgress = (activityData.steps / activityData.stepGoal) * 100;
-    const maxHourlySteps = Math.max(...activityData.hourlySteps.map(h => h.steps));
+    const stepProgress = stepGoal > 0 ? (activityData.steps / activityData.stepGoal) * 100 : 0;
+    const maxHourlySteps = activityData.hourlySteps.length > 0
+        ? Math.max(...activityData.hourlySteps.map(h => h.steps), 1)
+        : 1;
 
     const getMinnieMessage = () => {
-        if (stepProgress >= 100) {
+        if (todaySteps === 0) {
+            return "Ready to get moving? Start your first walk! 🚶";
+        } else if (stepProgress >= 100) {
             return "You crushed your goal today! Amazing work! 🎉";
         } else if (stepProgress >= 75) {
             return "Almost there! Just a bit more to hit your goal!";
@@ -135,21 +134,30 @@ export default function ActivityScreen() {
                 {/* Activity Timeline */}
                 <View style={styles.timelineCard}>
                     <Text style={styles.sectionTitle}>📊 Activity Timeline</Text>
-                    <View style={styles.timelineChart}>
-                        {activityData.hourlySteps.map((hour, index) => (
-                            <View key={hour.hour} style={styles.timelineBar}>
-                                <View
-                                    style={[
-                                        styles.barFill,
-                                        { height: `${(hour.steps / maxHourlySteps) * 100}%` },
-                                        hour.steps > 500 && styles.barActive,
-                                    ]}
-                                />
-                                <Text style={styles.barLabel}>{hour.hour.replace('AM', '').replace('PM', '')}</Text>
-                            </View>
-                        ))}
-                    </View>
-                    <Text style={styles.timelineNote}>Most active: 8-9 AM</Text>
+                    {activityData.hourlySteps.length > 0 ? (
+                        <View style={styles.timelineChart}>
+                            {activityData.hourlySteps.map((hour, index) => (
+                                <View key={hour.hour} style={styles.timelineBar}>
+                                    <View
+                                        style={[
+                                            styles.barFill,
+                                            { height: `${(hour.steps / maxHourlySteps) * 100}%` },
+                                            hour.steps > 500 && styles.barActive,
+                                        ]}
+                                    />
+                                    <Text style={styles.barLabel}>{hour.hour.replace('AM', '').replace('PM', '')}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    ) : (
+                        <View style={styles.emptyStateContainer}>
+                            <Text style={styles.emptyStateText}>📉 No activity data yet</Text>
+                            <Text style={styles.emptyStateSubtext}>Start a walk to see your hourly breakdown</Text>
+                        </View>
+                    )}
+                    {activityData.hourlySteps.length > 0 && (
+                        <Text style={styles.timelineNote}>Your activity throughout the day</Text>
+                    )}
                 </View>
 
                 {/* Action Buttons */}
@@ -171,20 +179,20 @@ export default function ActivityScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Weekly Summary */}
+                {/* Weekly Summary - Now shows real data */}
                 <View style={styles.weeklyCard}>
                     <Text style={styles.sectionTitle}>📈 This Week</Text>
                     <View style={styles.weeklyStats}>
                         <View style={styles.weeklyStat}>
-                            <Text style={styles.weeklyValue}>47,832</Text>
-                            <Text style={styles.weeklyLabel}>Total Steps</Text>
+                            <Text style={styles.weeklyValue}>{todaySteps.toLocaleString()}</Text>
+                            <Text style={styles.weeklyLabel}>Today's Steps</Text>
                         </View>
                         <View style={styles.weeklyStat}>
-                            <Text style={styles.weeklyValue}>6,833</Text>
-                            <Text style={styles.weeklyLabel}>Daily Avg</Text>
+                            <Text style={styles.weeklyValue}>{stepGoal.toLocaleString()}</Text>
+                            <Text style={styles.weeklyLabel}>Daily Goal</Text>
                         </View>
                         <View style={styles.weeklyStat}>
-                            <Text style={styles.weeklyValue}>5/7</Text>
+                            <Text style={styles.weeklyValue}>{stepProgress >= 100 ? '1/1' : '0/1'}</Text>
                             <Text style={styles.weeklyLabel}>Goal Days</Text>
                         </View>
                     </View>
@@ -372,6 +380,21 @@ const styles = StyleSheet.create({
         fontSize: Typography.fontSize.sm,
         color: Colors.textSecondary,
         marginTop: Spacing.md,
+        textAlign: 'center',
+    },
+    emptyStateContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: Spacing.xl,
+    },
+    emptyStateText: {
+        fontSize: Typography.fontSize.base,
+        color: Colors.textSecondary,
+        marginBottom: Spacing.xs,
+    },
+    emptyStateSubtext: {
+        fontSize: Typography.fontSize.sm,
+        color: Colors.textTertiary,
         textAlign: 'center',
     },
     actions: {
