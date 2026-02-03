@@ -170,7 +170,6 @@ export default function CoachScreen() {
         };
 
         setMessages(prev => [...prev, minnieMessage]);
-        setMessages(prev => [...prev, minnieMessage]);
         setIsLoading(false);
 
         // Speak response if it was a voice interaction or just always for accessibility?

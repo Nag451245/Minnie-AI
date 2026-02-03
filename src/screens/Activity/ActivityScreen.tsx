@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: Spacing.base,
-        paddingBottom: Spacing['2xl'],
+        paddingBottom: 100, // Account for tab bar (70px) + FAB overlap
     },
     header: {
         flexDirection: 'row',

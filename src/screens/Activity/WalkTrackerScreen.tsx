@@ -138,14 +138,20 @@ export default function WalkTrackerScreen() {
         setMinnieMessage("Back at it! Great energy! 💪");
     };
 
-    const handleEnd = () => {
+    const handleEnd = async () => {
         setIsActive(false);
         setIsPaused(false);
         Vibration.vibrate([100, 100, 100]);
         setMinnieState('celebratory');
         setMinnieMessage(`Amazing! ${steps} steps in ${formatTime(seconds)}! 🎉`);
 
-        // TODO: Save to database
+        // Save steps to persistent storage
+        try {
+            await PedometerService.saveTodaySteps();
+        } catch (error) {
+            console.error('Failed to save steps:', error);
+        }
+
         setTimeout(() => {
             navigation.goBack();
         }, 2000);

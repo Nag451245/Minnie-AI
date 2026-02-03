@@ -15,6 +15,10 @@ const STORAGE_KEYS = {
     MINNIE_AVATAR_STYLE: '@minnie_avatar_style',
     LAST_NUDGE_TIME: '@minnie_last_nudge',
     LAST_ACTIVITY_CHECK: '@minnie_last_activity_check',
+    DAILY_STEPS_PREFIX: '@minnie_daily_steps_',
+    OPENAI_API_KEY: '@minnie_openai_api_key',
+    DAILY_LOGS: '@minnie_daily_logs',
+    CURRENT_STREAK: '@minnie_current_streak',
 };
 
 class StorageService {
@@ -137,6 +141,81 @@ class StorageService {
     async getLastNudgeTime(): Promise<number | null> {
         const data = await AsyncStorage.getItem(STORAGE_KEYS.LAST_NUDGE_TIME);
         return data ? parseInt(data, 10) : null;
+    }
+
+    // Daily Steps (by date)
+    async setDailySteps(date: string, steps: number): Promise<void> {
+        try {
+            await AsyncStorage.setItem(STORAGE_KEYS.DAILY_STEPS_PREFIX + date, steps.toString());
+        } catch (error) {
+            console.error('Error saving daily steps:', error);
+        }
+    }
+
+    async getDailySteps(date: string): Promise<number> {
+        try {
+            const data = await AsyncStorage.getItem(STORAGE_KEYS.DAILY_STEPS_PREFIX + date);
+            return data ? parseInt(data, 10) : 0;
+        } catch (error) {
+            console.error('Error getting daily steps:', error);
+            return 0;
+        }
+    }
+
+    // OpenAI API Key
+    async setApiKey(key: string): Promise<void> {
+        try {
+            await AsyncStorage.setItem(STORAGE_KEYS.OPENAI_API_KEY, key);
+        } catch (error) {
+            console.error('Error saving API key:', error);
+        }
+    }
+
+    async getApiKey(): Promise<string | null> {
+        try {
+            return await AsyncStorage.getItem(STORAGE_KEYS.OPENAI_API_KEY);
+        } catch (error) {
+            console.error('Error getting API key:', error);
+            return null;
+        }
+    }
+
+    // Daily Logs (array of log entries)
+    async saveDailyLogs(logs: any[]): Promise<void> {
+        try {
+            await AsyncStorage.setItem(STORAGE_KEYS.DAILY_LOGS, JSON.stringify(logs));
+        } catch (error) {
+            console.error('Error saving daily logs:', error);
+        }
+    }
+
+    async getDailyLogs(): Promise<any[]> {
+        try {
+            const data = await AsyncStorage.getItem(STORAGE_KEYS.DAILY_LOGS);
+            return data ? JSON.parse(data) : [];
+        } catch (error) {
+            console.error('Error getting daily logs:', error);
+            return [];
+        }
+    }
+
+    // Current Streak
+    async setStreak(streak: number): Promise<void> {
+        try {
+            await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STREAK, streak.toString());
+        } catch (error) {
+            console.error('Error saving streak:', error);
+        }
+    }
+
+    async getStreak(): Promise<number> {
+        try {
+            const data = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_STREAK);
+            return data ? parseInt(data, 10) : 0;
+        } catch (error) {
+            console.error('Error getting streak:', error);
+            return 0;
+        }
     }
 
     // Clear all data (for testing/reset)

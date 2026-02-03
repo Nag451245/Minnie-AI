@@ -98,16 +98,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
             const user = await StorageService.getUserProfile();
             const onboardingComplete = await StorageService.isOnboardingComplete();
+            const streak = await StorageService.getStreak();
 
             if (user) {
                 dispatch({ type: 'SET_USER', payload: user });
             }
 
             dispatch({ type: 'SET_ONBOARDING_COMPLETE', payload: onboardingComplete });
+            dispatch({ type: 'SET_STREAK', payload: streak });
 
-            // Load today's log
+            // Load today's steps from storage
             const today = new Date().toISOString().split('T')[0];
-            // TODO: Load from SQLite
+            const todaySteps = await StorageService.getDailySteps(today);
+
+            if (todaySteps > 0) {
+                const stepGoal = user?.stepGoal || 7500;
+                dispatch({
+                    type: 'SET_TODAY_LOG',
+                    payload: {
+                        date: today,
+                        steps: todaySteps,
+                        stepGoal: stepGoal,
+                        challengeCompleted: todaySteps >= stepGoal,
+                        waterIntake: 0,
+                        mood: undefined,
+                        weight: user?.currentWeight,
+                        sleepQuality: undefined,
+                        sleepHours: undefined,
+                    }
+                });
+            }
 
             dispatch({ type: 'SET_LOADING', payload: false });
         } catch (error) {

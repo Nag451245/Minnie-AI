@@ -23,26 +23,33 @@ export default function ProgressScreen() {
     const { state } = useApp();
     const [timeRange, setTimeRange] = useState<TimeRange>('week');
 
-    // Mock data - will be replaced with real data
+    // Get real data from context - if no data, show empty state
+    const currentWeight = state.user?.currentWeight || 0;
+    const targetWeight = state.user?.targetWeight || 0;
+    const streakDays = state.currentStreak || 0;
+    const todaySteps = state.todayLog?.steps || 0;
+    const todayWater = state.todayLog?.waterIntake || 0;
+    const stepGoal = state.user?.stepGoal || 7500;
+
+    // Since we only have today's data in context, show what we have
+    // In a full implementation, this would load historical data from storage
     const weeklyData = {
-        weight: [75.2, 75.0, 74.8, 74.9, 74.6, 74.5, 74.4],
-        steps: [6500, 8200, 5400, 9100, 7800, 4200, 5432],
-        water: [2000, 2500, 1800, 2200, 2400, 1500, 1250],
+        weight: currentWeight ? [currentWeight] : [],
+        steps: todaySteps ? [todaySteps] : [],
+        water: todayWater ? [todayWater] : [],
     };
 
+    // Calculate stats from available data
     const stats = {
-        weightChange: -0.8,
-        avgSteps: 6662,
-        avgWater: 1950,
-        streakDays: 4,
-        goalDays: 5,
-        totalDays: 7,
-        moodBreakdown: [
-            { mood: 'Happy', count: 3, color: Colors.activity },
-            { mood: 'Stressed', count: 2, color: Colors.secondary },
-            { mood: 'Energetic', count: 1, color: Colors.streakGold },
-            { mood: 'Tired', count: 1, color: Colors.textTertiary },
-        ],
+        weightChange: currentWeight && targetWeight ? currentWeight - targetWeight : 0,
+        avgSteps: todaySteps, // Only have today's data
+        avgWater: todayWater,
+        streakDays: streakDays,
+        goalDays: todaySteps >= stepGoal ? 1 : 0,
+        totalDays: todaySteps > 0 ? 1 : 0,
+        moodBreakdown: state.todayLog?.mood
+            ? [{ mood: state.todayLog.mood, count: 1, color: Colors.activity }]
+            : [],
     };
 
     // Simple bar chart renderer
@@ -69,11 +76,13 @@ export default function ProgressScreen() {
         );
     };
 
-    // Consistency heatmap
+    // Consistency heatmap - show empty state if no data
     const renderHeatmap = () => {
+        // Since we don't have historical data yet, show a mostly empty heatmap
+        // with only today potentially filled if goals were met
         const days = Array.from({ length: 28 }, (_, i) => ({
             day: i + 1,
-            completed: Math.random() > 0.3,
+            completed: i === 27 && todaySteps >= stepGoal, // Only today (last day) if goal met
         }));
 
         return (
@@ -255,7 +264,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: Spacing.base,
-        paddingBottom: Spacing['2xl'],
+        paddingBottom: 100, // Account for tab bar (70px) + FAB overlap
     },
     header: {
         flexDirection: 'row',

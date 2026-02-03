@@ -25,17 +25,23 @@ export default function HomeScreen() {
     const { state } = useApp();
     const [refreshing, setRefreshing] = useState(false);
 
-    // Mock data for now - will be replaced with real data
+    // Calculate real data from context (with fallback to 0 for new users)
     const todayStats = {
-        steps: 5432,
+        steps: state.todayLog?.steps || 0,
         stepGoal: state.user?.stepGoal || 7500,
-        water: 1250,
+        water: state.todayLog?.waterIntake || 0,
         waterGoal: 2500,
-        sleepHours: 7.5,
-        mood: 'happy',
-        streak: 4,
-        challenge: 'Walk 2,000 more steps before 6 PM',
-        challengeCompleted: false,
+        sleepHours: state.todayLog?.sleepHours || 0,
+        mood: state.todayLog?.mood || null,
+        streak: state.currentStreak || 0,
+        challengeCompleted: (state.todayLog?.steps || 0) >= (state.user?.stepGoal || 7500),
+    };
+
+    // Dynamic challenge text
+    const getChallengeText = (): string => {
+        const remaining = todayStats.stepGoal - todayStats.steps;
+        if (remaining <= 0) return 'Great job! You hit your step goal! 🎉';
+        return `Walk ${remaining.toLocaleString()} more steps to reach your goal`;
     };
 
     const stepProgress = (todayStats.steps / todayStats.stepGoal) * 100;
@@ -159,7 +165,7 @@ export default function HomeScreen() {
                             </View>
                         )}
                     </View>
-                    <Text style={styles.challengeText}>{todayStats.challenge}</Text>
+                    <Text style={styles.challengeText}>{getChallengeText()}</Text>
                     <TouchableOpacity
                         style={[styles.challengeButton, todayStats.challengeCompleted && styles.challengeButtonDone]}
                         disabled={todayStats.challengeCompleted}
@@ -207,7 +213,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: Spacing.base,
-        paddingBottom: Spacing['2xl'],
+        paddingBottom: 100, // Account for tab bar (70px) + FAB overlap
     },
     header: {
         flexDirection: 'row',
