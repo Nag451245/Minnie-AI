@@ -6,6 +6,7 @@ import { UserProfile, DailyLog, MoodType, MinnieState } from '../types';
 import StorageService from '../services/StorageService';
 import PedometerService from '../services/PedometerService';
 
+
 // State interface
 interface AppState {
     user: UserProfile | null;
@@ -88,9 +89,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
     const [state, dispatch] = useReducer(appReducer, initialState);
 
-    import PedometerService from '../services/PedometerService';
 
-    // ... existing code ...
 
     // Load initial data on mount
     useEffect(() => {
