@@ -5,7 +5,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StyleSheet, Platform } from 'react-native';
 import CustomTabBar from './CustomTabBar';
-import { Colors } from '../constants/theme';
+import { Colors, Shadows, Typography, Spacing } from '../constants/theme';
 import { RootTabParamList } from '../types';
 
 // Screens
