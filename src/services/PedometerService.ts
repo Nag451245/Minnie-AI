@@ -174,19 +174,27 @@ class PedometerService {
      * Start step tracking (uses native sensor if available)
      */
     async startTracking(): Promise<void> {
-        if (this.isTracking) return;
+        console.log('[PedometerService] startTracking() called');
+
+        if (this.isTracking) {
+            console.log('[PedometerService] Already tracking, skipping');
+            return;
+        }
 
         // Ensure initialized
         await this.initializeSteps();
         this.checkDateChange();
 
         if (this.useNativeSensor && StepCounterModule) {
+            console.log('[PedometerService] Using NATIVE sensor');
             await this.startNativeTracking();
         } else {
+            console.log('[PedometerService] Using ACCELEROMETER fallback');
             this.startAccelerometerTracking();
         }
 
         this.isTracking = true;
+        console.log('[PedometerService] Step tracking ACTIVE');
     }
 
     /**

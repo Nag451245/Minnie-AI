@@ -108,6 +108,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         };
     }, []);
 
+
     const loadInitialData = async () => {
         try {
             dispatch({ type: 'SET_LOADING', payload: true });
@@ -115,11 +116,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const user = await StorageService.getUserProfile();
             const onboardingComplete = await StorageService.isOnboardingComplete();
 
-            // Initial Pedometer Sync
-            await PedometerService.initializeSteps();
-            // Start tracking automatically if permission granted
-            if (await PedometerService.hasPermission()) {
+            // ===== STEP COUNTER INITIALIZATION =====
+            console.log('[AppContext] Initializing step counter...');
+
+            // 1. Request permission explicitly
+            const hasPermission = await PedometerService.requestPermission();
+            console.log('[AppContext] Step counter permission granted:', hasPermission);
+
+            if (hasPermission) {
+                // 2. Initialize step counter
+                await PedometerService.initializeSteps();
+                console.log('[AppContext] Step counter initialized');
+
+                // 3. Start tracking
                 PedometerService.startTracking();
+                console.log('[AppContext] Step tracking started');
+            } else {
+                console.warn('[AppContext] Step tracking NOT started - permission denied');
             }
 
             // ... rest of loadInitialData ...
@@ -128,6 +141,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             if (user) {
                 dispatch({ type: 'SET_USER', payload: user });
             }
+
 
             dispatch({ type: 'SET_ONBOARDING_COMPLETE', payload: onboardingComplete });
             dispatch({ type: 'SET_STREAK', payload: streak });

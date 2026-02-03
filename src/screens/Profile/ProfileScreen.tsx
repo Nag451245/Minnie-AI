@@ -51,6 +51,49 @@ export default function ProfileScreen() {
         );
     };
 
+    const handleCoachingModeChange = () => {
+        Alert.alert(
+            'Coaching Mode',
+            'Choose your preference',
+            [
+                {
+                    text: 'Gentle',
+                    onPress: async () => {
+                        const updated = { ...state.user!, nudgeFrequency: 'gentle' as const };
+                        await StorageService.saveUserProfile(updated);
+                        dispatch({ type: 'SET_USER', payload: updated });
+                    },
+                },
+                {
+                    text: 'Strict',
+                    onPress: async () => {
+                        const updated = { ...state.user!, nudgeFrequency: 'strict' as const };
+                        await StorageService.saveUserProfile(updated);
+                        dispatch({ type: 'SET_USER', payload: updated });
+                    },
+                },
+                { text: 'Cancel', style: 'cancel' },
+            ]
+        );
+    };
+
+    const handleStepGoalEdit = () => {
+        Alert.prompt(
+            'Daily Step Goal',
+            'Enter your target steps per day',
+            async (value) => {
+                const newGoal = parseInt(value, 10);
+                if (!isNaN(newGoal) && newGoal > 0) {
+                    const updated = { ...state.user!, stepGoal: newGoal };
+                    await StorageService.saveUserProfile(updated);
+                    dispatch({ type: 'SET_USER', payload: updated });
+                }
+            },
+            'plain-text',
+            state.user?.stepGoal?.toString() || '7500'
+        );
+    };
+
     const getBMICategory = (bmi?: number): { label: string; color: string } => {
         if (!bmi) return { label: 'N/A', color: Colors.textTertiary };
         if (bmi < 18.5) return { label: 'Underweight', color: Colors.info };
@@ -145,7 +188,10 @@ export default function ProfileScreen() {
                                 {state.user?.nudgeFrequency === 'strict' ? 'Strict' : 'Gentle'}
                             </Text>
                         </View>
-                        <TouchableOpacity style={styles.changeButton}>
+                        <TouchableOpacity
+                            style={styles.changeButton}
+                            onPress={handleCoachingModeChange}
+                        >
                             <Text style={styles.changeButtonText}>Change</Text>
                         </TouchableOpacity>
                     </View>
@@ -181,7 +227,10 @@ export default function ProfileScreen() {
                             <Text style={styles.settingLabel}>Daily Step Goal</Text>
                             <Text style={styles.settingValue}>{state.user?.stepGoal?.toLocaleString()}</Text>
                         </View>
-                        <TouchableOpacity style={styles.changeButton}>
+                        <TouchableOpacity
+                            style={styles.changeButton}
+                            onPress={handleStepGoalEdit}
+                        >
                             <Text style={styles.changeButtonText}>Edit</Text>
                         </TouchableOpacity>
                     </View>
