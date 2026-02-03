@@ -218,7 +218,7 @@ export default function CoachScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <KeyboardAvoidingView
                 style={styles.keyboardView}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -400,7 +400,6 @@ const styles = StyleSheet.create({
     },
     messagesContainer: {
         flex: 1,
-        paddingBottom: 70,
     },
     messagesContent: {
         padding: Spacing.base,
