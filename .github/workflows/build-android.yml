@@ -33,6 +33,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Create local config with API key
+        run: |
+          echo '{"OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}"}' > config.local.json
+          echo "Created config.local.json for GPT 5.2 support"
+
       - name: Debug - Verify plugin directory
         run: |
           echo "=== Checking node_modules/@react-native/gradle-plugin ==="
