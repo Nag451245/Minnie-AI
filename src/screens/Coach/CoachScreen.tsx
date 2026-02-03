@@ -159,7 +159,15 @@ export default function CoachScreen() {
     };
 
     const handleSend = async () => {
-        if (!inputText.trim()) return;
+        console.log('[CoachScreen] 🟦 Send button clicked');
+
+        if (!inputText.trim()) {
+            console.warn('[CoachScreen] ⚠️  Empty message, ignoring');
+            return;
+        }
+
+        console.log('[CoachScreen] 📝 Message:', inputText.trim());
+        console.log('[Coach Screen] 🔑 API key present:', hasApiKey);
 
         const userMessage: DisplayMessage = {
             id: Date.now(),
@@ -178,7 +186,9 @@ export default function CoachScreen() {
         // Simulate API delay
         await new Promise(resolve => setTimeout(resolve, 1500));
 
+        console.log('[CoachScreen] 🔄 Fetching response...');
         const response = await getMinnieResponse(inputText);
+        console.log('[CoachScreen] ✅ Response received:', response);
 
         const minnieMessage: DisplayMessage = {
             id: Date.now() + 1,
@@ -191,7 +201,7 @@ export default function CoachScreen() {
         setMessages(prev => [...prev, minnieMessage]);
         setIsLoading(false);
 
-        // Speak response if it was a voice interaction or just always for accessibility?
+        // Speak response if it was a voice interaction or just always for accessibility? 
         // Let's speak it if the user used voice recently, or we can add a toggle. 
         // For now, let's speak it.
         VoiceManager.speak(response.message);

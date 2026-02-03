@@ -53,48 +53,48 @@ class StepCounterModule(reactContext: ReactApplicationContext) :
     }
 
     /**
-     * Start listening to step counter sensor
+     * Initialize and start the foreground service
      */
     @ReactMethod
-    fun startTracking(promise: Promise) {
-        if (isListening) {
-            promise.resolve(true)
-            return
-        }
-
-        val sensor = stepCounterSensor ?: stepDetectorSensor
-        
-        if (sensor == null) {
-            promise.reject("SENSOR_NOT_AVAILABLE", "No step counter sensor available on this device")
-            return
-        }
-
+    fun initialize(promise: Promise) {
         try {
-            val registered = sensorManager?.registerListener(
-                this,
-                sensor,
-                SensorManager.SENSOR_DELAY_NORMAL // ~200ms update rate
-            ) ?: false
-
-            if (registered) {
-                isListening = true
-                promise.resolve(true)
-            } else {
-                promise.reject("REGISTRATION_FAILED", "Failed to register sensor listener")
-            }
+            Log.d("StepCounterModule", "🎯 Initializing step counter service...")
+            StepCounterService.startService(reactApplicationContext)
+            promise.resolve(true)
         } catch (e: Exception) {
-            promise.reject("SENSOR_ERROR", "Error starting step tracking: ${e.message}")
+            promise.reject("INIT_ERROR", "Failed to initialize service: ${e.message}")
         }
     }
 
     /**
-     * Stop listening to step counter sensor
+     * Start listening to step counter sensor via foreground service
+     */
+    @ReactMethod
+    fun startTracking(promise: Promise) {
+        try {
+            Log.d("StepCounterModule", "▶️ Starting step tracking...")
+            
+            if (StepCounterService.isServiceRunning()) {
+                Log.d("StepCounterModule", "✅ Service already running")
+                promise.resolve(true)
+                return
+            }
+            
+            StepCounterService.startService(reactApplicationContext)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("START_ERROR", "Error starting step tracking: ${e.message}")
+        }
+    }
+
+    /**
+     * Stop the foreground service
      */
     @ReactMethod
     fun stopTracking(promise: Promise) {
         try {
-            sensorManager?.unregisterListener(this)
-            isListening = false
+            Log.d("StepCounterModule", "⏹️ Stopping step tracking...")
+            StepCounterService.stopService(reactApplicationContext)
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("STOP_ERROR", "Error stopping step tracking: ${e.message}")

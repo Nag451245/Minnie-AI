@@ -51,14 +51,22 @@ class AiService {
     }
 
     async getResponse(userMessage: string): Promise<{ message: string; state: MinnieState }> {
+        console.log('[AiService] 📥 getResponse called with message:', userMessage);
+
         // Ensure service is initialized
         if (!this.initialized) {
+            console.log('[AiService] 🔄 Not initialized, calling initialize...');
             await this.initialize();
         }
 
+        console.log('[AiService] 🔑 Has API key:', !!this.apiKey);
+
         if (this.apiKey) {
+            console.log('[AiService] 🌐 Calling OpenAI API...');
             return this.fetchOpenAiResponse(userMessage);
         }
+
+        console.log('[AiService] ⚠️ No API key, using mock response');
         return this.getMockResponse(userMessage);
     }
 
