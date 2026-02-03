@@ -146,18 +146,18 @@ class StepCounterModule(reactContext: ReactApplicationContext) :
                     totalSteps = steps
                     val stepsSinceStart = (steps - initialSteps).toInt()
                     
-                    // Emit event to React Native
-                    sendStepCountEvent(stepsSinceStart)
+                    // Emit event to React Native with both session and raw steps
+                    sendStepCountEvent(stepsSinceStart, steps)
                 }
                 Sensor.TYPE_STEP_DETECTOR -> {
                     // TYPE_STEP_DETECTOR triggers for each step detected
-                    // Increment our counter
                     if (initialSteps < 0) {
                         initialSteps = 0f
                     }
                     totalSteps += 1f
                     
-                    sendStepCountEvent(totalSteps.toInt())
+                    // For detector, raw and session are the same accumulator
+                    sendStepCountEvent(totalSteps.toInt(), totalSteps)
                 }
             }
         }
@@ -165,22 +165,17 @@ class StepCounterModule(reactContext: ReactApplicationContext) :
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
         // Log accuracy changes for debugging
-        when (accuracy) {
-            SensorManager.SENSOR_STATUS_UNRELIABLE -> {
-                // Sensor data is unreliable
-            }
-            SensorManager.SENSOR_STATUS_ACCURACY_LOW,
-            SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM,
-            SensorManager.SENSOR_STATUS_ACCURACY_HIGH -> {
-                // Sensor is working properly
-            }
-        }
     }
 
-    private fun sendStepCountEvent(steps: Int) {
+    private fun sendStepCountEvent(steps: Int, rawSteps: Float) {
+        val params = Arguments.createMap().apply {
+            putInt("steps", steps)
+            putDouble("rawSteps", rawSteps.toDouble())
+        }
+        
         reactApplicationContext
             .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-            .emit(EVENT_STEP_COUNT, steps)
+            .emit(EVENT_STEP_COUNT, params)
     }
 
     // Required for NativeEventEmitter

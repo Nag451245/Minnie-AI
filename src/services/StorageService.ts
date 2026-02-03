@@ -19,9 +19,22 @@ const STORAGE_KEYS = {
     OPENAI_API_KEY: '@minnie_openai_api_key',
     DAILY_LOGS: '@minnie_daily_logs',
     CURRENT_STREAK: '@minnie_current_streak',
+    LAST_RAW_STEPS: '@minnie_last_raw_steps',
 };
 
 class StorageService {
+    // ... existing user profile methods ...
+
+    // Raw Step Tracking (for reboot handling)
+    async setLastRawSteps(steps: number): Promise<void> {
+        await AsyncStorage.setItem(STORAGE_KEYS.LAST_RAW_STEPS, steps.toString());
+    }
+
+    async getLastRawSteps(): Promise<number> {
+        const data = await AsyncStorage.getItem(STORAGE_KEYS.LAST_RAW_STEPS);
+        return data ? parseFloat(data) : 0;
+    }
+
     // User Profile
     async saveUserProfile(profile: UserProfile): Promise<void> {
         try {

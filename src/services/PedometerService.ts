@@ -27,6 +27,7 @@ class PedometerService {
     private listeners: ((steps: number) => void)[] = [];
     private stepsFromSession: number = 0;
     private totalDailySteps: number = 0;
+    private lastRawSteps: number = 0; // Track raw sensor value for reboot detection
     private initialized: boolean = false;
     private currentDate: string = '';
     private permissionGranted: boolean = false;
@@ -57,6 +58,7 @@ class PedometerService {
             const today = new Date().toISOString().split('T')[0];
             this.currentDate = today;
             this.totalDailySteps = await StorageService.getDailySteps(today);
+            this.lastRawSteps = await StorageService.getLastRawSteps();
 
             // Check if native sensor is available
             if (Platform.OS === 'android' && StepCounterModule) {
@@ -175,17 +177,51 @@ class PedometerService {
     /**
      * Start tracking using native hardware step counter
      */
+    /**
+     * Start tracking using native hardware step counter
+     */
     private async startNativeTracking(): Promise<void> {
         try {
             // Subscribe to native step events
             if (stepCounterEmitter) {
                 this.nativeSubscription = stepCounterEmitter.addListener(
                     'StepCounterUpdate',
-                    (steps: number) => {
-                        this.stepsFromSession = steps;
-                        this.totalDailySteps = this.stepsFromSession;
+                    (event: any) => {
+                        // Handle both old (number) and new (object) event formats
+                        const stepsFromStart = typeof event === 'number' ? event : event.steps;
+                        const rawSteps = typeof event === 'object' ? event.rawSteps : -1;
+
+                        if (rawSteps > 0) {
+                            // Robust tracking using raw steps (reboot proof)
+                            if (this.lastRawSteps === 0) {
+                                // First initialization
+                                this.lastRawSteps = rawSteps;
+                            }
+
+                            let delta = rawSteps - this.lastRawSteps;
+
+                            // Reboot detection: If current raw < last raw, device rebooted
+                            if (delta < 0) {
+                                console.log('Device reboot detected (step counter reset)');
+                                delta = rawSteps; // Add all new steps
+                            }
+
+                            if (delta > 0) {
+                                this.totalDailySteps += delta;
+                                this.lastRawSteps = rawSteps;
+                                this.saveTodaySteps();
+                                StorageService.setLastRawSteps(rawSteps);
+                            }
+                        } else {
+                            // Fallback for simple session steps or older module version
+                            // This is less accurate across reboots but functional
+                            this.stepsFromSession = stepsFromStart;
+                            // Approximate daily steps if we don't have raw delta
+                            // Note: This matches old logic, but rawSteps path is preferred
+                            this.totalDailySteps = this.stepsFromSession;
+                        }
+
                         this.notifyListeners();
-                        this.saveTodaySteps();
                     }
                 );
             }
