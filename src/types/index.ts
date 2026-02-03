@@ -140,6 +140,7 @@ export type RootTabParamList = {
     Coach: undefined;
     Progress: undefined;
     Profile: undefined;
+    Settings: undefined;
 };
 
 export type RootStackParamList = {

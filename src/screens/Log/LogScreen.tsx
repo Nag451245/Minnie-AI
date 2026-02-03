@@ -22,12 +22,14 @@ type LogType = 'weight' | 'water' | 'mood' | 'sleep' | 'activity' | null;
 
 export default function LogScreen() {
     const navigation = useNavigation();
-    const { state, updateMood, updateWater, logWeight } = useApp();
+    const { state, dispatch, updateMood, updateWater, logWeight } = useApp();
     const [activeLog, setActiveLog] = useState<LogType>(null);
     const [weightValue, setWeightValue] = useState('');
     const [sleepHours, setSleepHours] = useState('');
     const [sleepQuality, setSleepQuality] = useState<string>('');
     const [selectedMood, setSelectedMood] = useState<MoodType | null>(null);
+    const [activityDuration, setActivityDuration] = useState('');
+    const [activityType, setActivityType] = useState('Run');
 
     const logTypes = [
         { id: 'weight', icon: '⚖️', label: 'Weight', color: Colors.primary },
@@ -67,6 +69,20 @@ export default function LogScreen() {
         }
     };
 
+    const handleLogActivity = () => {
+        if (activityDuration && activityType) {
+            dispatch({
+                type: 'UPDATE_TODAY_LOG',
+                payload: {
+                    steps: (state.todayLog?.steps || 0) + (parseInt(activityDuration) * 100),
+                    activeMinutes: (state.todayLog?.activeMinutes || 0) + parseInt(activityDuration)
+                }
+            });
+            setActiveLog(null);
+            setActivityDuration('');
+        }
+    };
+
     const renderLogModal = () => {
         if (!activeLog) return null;
 
@@ -100,9 +116,52 @@ export default function LogScreen() {
                                         keyboardType="decimal-pad"
                                         value={weightValue}
                                         onChangeText={setWeightValue}
+                                        autoFocus
                                     />
-                                    <TouchableOpacity style={styles.submitButton} onPress={handleLogWeight}>
-                                        <Text style={styles.submitButtonText}>Save Weight</Text>
+                                    <TouchableOpacity
+                                        style={[styles.submitButton, !weightValue && styles.submitButtonDisabled]}
+                                        onPress={handleLogWeight}
+                                        disabled={!weightValue}
+                                    >
+                                        <Text style={styles.submitButtonText}>Update Weight</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+
+                            {activeLog === 'activity' && (
+                                <View style={styles.logForm}>
+                                    <Text style={styles.inputLabel}>Duration (minutes)</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="30"
+                                        placeholderTextColor={Colors.textTertiary}
+                                        keyboardType="number-pad"
+                                        value={activityDuration}
+                                        onChangeText={setActivityDuration}
+                                        autoFocus
+                                    />
+                                    <Text style={[styles.inputLabel, { marginTop: Spacing.md }]}>Activity Type</Text>
+                                    <View style={styles.moodGrid}>
+                                        {['Run', 'Walk', 'Gym', 'Yoga'].map((type) => (
+                                            <TouchableOpacity
+                                                key={type}
+                                                style={[
+                                                    styles.moodButton,
+                                                    activityType === type && styles.moodButtonActive,
+                                                    { width: '45%' }
+                                                ]}
+                                                onPress={() => setActivityType(type)}
+                                            >
+                                                <Text style={styles.waterButtonText}>{type}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                    <TouchableOpacity
+                                        style={[styles.submitButton, (!activityDuration || !activityType) && styles.submitButtonDisabled]}
+                                        onPress={handleLogActivity}
+                                        disabled={!activityDuration || !activityType}
+                                    >
+                                        <Text style={styles.submitButtonText}>Log Activity</Text>
                                     </TouchableOpacity>
                                 </View>
                             )}
@@ -194,26 +253,8 @@ export default function LogScreen() {
                                     </TouchableOpacity>
                                 </View>
                             )}
-
-                            {activeLog === 'activity' && (
-                                <View style={styles.logForm}>
-                                    <Text style={styles.sectionNote}>
-                                        For detailed activity logging, use the Activity tab!
-                                    </Text>
-                                    <TouchableOpacity
-                                        style={styles.submitButton}
-                                        onPress={() => {
-                                            setActiveLog(null);
-                                            // Navigate to Activity tab
-                                        }}
-                                    >
-                                        <Text style={styles.submitButtonText}>Go to Activity</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
                         </ScrollView>
 
-                        {/* Minnie encouragement */}
                         <View style={styles.minnieSection}>
                             <MinnieAvatar state="happy" size="small" animated={false} />
                             <Text style={styles.minnieNote}>Every log matters! 📝</Text>
@@ -290,13 +331,13 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: Colors.background,
-        borderRadius: BorderRadius.xl,
         padding: Spacing.lg,
+        borderRadius: BorderRadius.xl,
         borderLeftWidth: 4,
         ...Shadows.sm,
     },
     logIcon: {
-        fontSize: 28,
+        fontSize: 24,
         marginRight: Spacing.md,
     },
     logLabel: {

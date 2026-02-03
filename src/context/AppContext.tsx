@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { UserProfile, DailyLog, MoodType, MinnieState } from '../types';
 import StorageService from '../services/StorageService';
+import PedometerService from '../services/PedometerService';
 
 // State interface
 interface AppState {
@@ -87,9 +88,25 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
     const [state, dispatch] = useReducer(appReducer, initialState);
 
+    import PedometerService from '../services/PedometerService';
+
+    // ... existing code ...
+
     // Load initial data on mount
     useEffect(() => {
         loadInitialData();
+
+        // Subscribe to real-time step updates
+        const unsubscribe = PedometerService.addStepListener((steps) => {
+            dispatch({
+                type: 'UPDATE_TODAY_LOG',
+                payload: { steps: steps }
+            });
+        });
+
+        return () => {
+            unsubscribe();
+        };
     }, []);
 
     const loadInitialData = async () => {
@@ -98,6 +115,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
             const user = await StorageService.getUserProfile();
             const onboardingComplete = await StorageService.isOnboardingComplete();
+
+            // Initial Pedometer Sync
+            await PedometerService.initializeSteps();
+            // Start tracking automatically if permission granted
+            if (await PedometerService.hasPermission()) {
+                PedometerService.startTracking();
+            }
+
+            // ... rest of loadInitialData ...
             const streak = await StorageService.getStreak();
 
             if (user) {

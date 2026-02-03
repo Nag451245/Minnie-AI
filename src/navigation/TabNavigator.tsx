@@ -55,6 +55,10 @@ export default function TabNavigator() {
                 component={ProgressScreen}
 
             />
+            <Tab.Screen
+                name="Settings"
+                component={ProfileScreen}
+            />
         </Tab.Navigator>
     );
 }

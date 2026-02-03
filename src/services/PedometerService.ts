@@ -51,7 +51,7 @@ class PedometerService {
     /**
      * Load today's step count from storage
      */
-    private async initializeSteps(): Promise<void> {
+    public async initializeSteps(): Promise<void> {
         if (this.initialized) return;
 
         try {
@@ -156,6 +156,21 @@ class PedometerService {
     }
 
     /**
+     * Subscribe to step updates
+     */
+    addStepListener(listener: (steps: number) => void): () => void {
+        this.listeners.push(listener);
+        // data flow check: immediately callback with current steps
+        if (this.totalDailySteps > 0) {
+            listener(this.totalDailySteps);
+        }
+
+        return () => {
+            this.listeners = this.listeners.filter(l => l !== listener);
+        };
+    }
+
+    /**
      * Start step tracking (uses native sensor if available)
      */
     async startTracking(): Promise<void> {
@@ -177,6 +192,8 @@ class PedometerService {
     /**
      * Start tracking using native hardware step counter
      */
+
+
     /**
      * Start tracking using native hardware step counter
      */
