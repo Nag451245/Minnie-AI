@@ -228,6 +228,26 @@ class StorageService {
             throw error;
         }
     }
+
+    // Generic get for any key
+    async get(key: string): Promise<string | null> {
+        try {
+            return await AsyncStorage.getItem(key);
+        } catch (error) {
+            console.error(`Error getting ${key}:`, error);
+            return null;
+        }
+    }
+
+    // Generic set for any key
+    async set(key: string, value: string): Promise<void> {
+        try {
+            await AsyncStorage.setItem(key, value);
+        } catch (error) {
+            console.error(`Error setting ${key}:`, error);
+            throw error;
+        }
+    }
 }
 
 export default new StorageService();

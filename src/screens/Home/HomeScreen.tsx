@@ -17,6 +17,9 @@ import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../consta
 import { useApp } from '../../context/AppContext';
 import MinnieAvatar from '../../components/Minnie/MinnieAvatar';
 import { RootStackParamList } from '../../types';
+import ChallengeService, { Challenge } from '../../services/ChallengeService';
+import SedentaryService from '../../services/SedentaryService';
+import NotificationService from '../../services/NotificationService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -24,6 +27,39 @@ export default function HomeScreen() {
     const navigation = useNavigation<NavigationProp>();
     const { state } = useApp();
     const [refreshing, setRefreshing] = useState(false);
+    const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null);
+    const [challengeProgress, setChallengeProgress] = useState(0);
+
+    // Initialize services on mount
+    useEffect(() => {
+        const initServices = async () => {
+            await NotificationService.initialize();
+            await NotificationService.requestPermission();
+            await SedentaryService.initialize();
+            SedentaryService.startMonitoring();
+
+            // Load active challenge
+            const challenge = await ChallengeService.getActiveChallenge();
+            setActiveChallenge(challenge);
+            if (challenge) {
+                setChallengeProgress(ChallengeService.getCompletionPercentage());
+            }
+        };
+        initServices();
+
+        return () => {
+            SedentaryService.stopMonitoring();
+        };
+    }, []);
+
+    // Update challenge progress when steps change
+    useEffect(() => {
+        if (activeChallenge && activeChallenge.category === 'steps') {
+            const steps = state.todayLog?.steps || 0;
+            ChallengeService.updateProgress(steps);
+            setChallengeProgress(ChallengeService.getCompletionPercentage());
+        }
+    }, [state.todayLog?.steps, activeChallenge]);
 
     // Calculate real data from context (with fallback to 0 for new users)
     const todayStats = {
@@ -34,11 +70,14 @@ export default function HomeScreen() {
         sleepHours: state.todayLog?.sleepHours || 0,
         mood: state.todayLog?.mood || null,
         streak: state.currentStreak || 0,
-        challengeCompleted: (state.todayLog?.steps || 0) >= (state.user?.stepGoal || 7500),
+        challengeCompleted: activeChallenge?.status === 'completed',
     };
 
-    // Dynamic challenge text
+    // Dynamic challenge text from ChallengeService
     const getChallengeText = (): string => {
+        if (activeChallenge) {
+            return activeChallenge.description;
+        }
         const remaining = todayStats.stepGoal - todayStats.steps;
         if (remaining <= 0) return 'Great job! You hit your step goal! 🎉';
         return `Walk ${remaining.toLocaleString()} more steps to reach your goal`;
@@ -49,7 +88,12 @@ export default function HomeScreen() {
 
     const onRefresh = async () => {
         setRefreshing(true);
-        // TODO: Refresh data from database
+        // Reload challenge
+        const challenge = await ChallengeService.getActiveChallenge();
+        setActiveChallenge(challenge);
+        if (challenge) {
+            setChallengeProgress(ChallengeService.getCompletionPercentage());
+        }
         setTimeout(() => setRefreshing(false), 1000);
     };
 
@@ -62,6 +106,21 @@ export default function HomeScreen() {
         if (hour < 12) return 'Good morning';
         if (hour < 17) return 'Good afternoon';
         return 'Good evening';
+    };
+
+    // Get dynamic insight based on progress
+    const getInsightText = (): string => {
+        const percentComplete = Math.round(stepProgress);
+        if (percentComplete >= 100) {
+            return "Amazing! You've crushed your step goal today! Keep this momentum going! 🎉";
+        } else if (percentComplete >= 75) {
+            return `You're ${percentComplete}% to your step goal! A quick 10-minute walk will get you there!`;
+        } else if (percentComplete >= 50) {
+            return `Halfway there! You've got ${formatNumber(todayStats.stepGoal - todayStats.steps)} steps to go. You can do it!`;
+        } else if (percentComplete > 0) {
+            return `Good start! Keep moving throughout the day to reach your ${formatNumber(todayStats.stepGoal)} step goal.`;
+        }
+        return "Ready to start moving? Every step counts towards your daily goal!";
     };
 
     return (
@@ -182,7 +241,7 @@ export default function HomeScreen() {
                     <View style={styles.insightContent}>
                         <Text style={styles.insightTitle}>💡 Minnie's Insight</Text>
                         <Text style={styles.insightText}>
-                            You're 72% to your step goal! A 15-minute walk would get you there. Ready to go?
+                            {getInsightText()}
                         </Text>
                     </View>
                 </View>
