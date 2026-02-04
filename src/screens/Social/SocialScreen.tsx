@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     },
     listContent: {
         padding: Spacing.md,
-        paddingBottom: 100,
+        paddingBottom: 140,
     },
     groupCard: {
         marginBottom: Spacing.md,
