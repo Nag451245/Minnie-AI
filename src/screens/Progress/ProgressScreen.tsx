@@ -41,36 +41,48 @@ export default function ProgressScreen() {
     );
 
     const loadHistory = async () => {
-        // Only set loading to true if we don't have logs yet (prevent flash on refocuse)
-        if (historyLogs.length === 0) setLoading(true);
-
-        const logs = await HistoryService.getAllLogs();
-        // ... (existing logic)
-
-        // Ensure today's log from context is included/updated
-        if (state.todayLog && state.todayLog.date) {
-            const todayIndex = logs.findIndex(l => l.date === state.todayLog!.date);
-            if (todayIndex >= 0) {
-                logs[todayIndex] = state.todayLog;
-            } else {
-                logs.push(state.todayLog);
+        // Safety timeout to prevent infinite loading screen
+        const timeoutId = setTimeout(() => {
+            if (loading) {
+                console.warn("ProgressScreen: Data load timed out, forcing render");
+                setLoading(false);
             }
-        }
+        }, 5000);
 
-        // Sanitize logs
-        const validLogs = logs.filter(l => l && l.date && !isNaN(new Date(l.date).getTime()));
-        setHistoryLogs(validLogs);
-
-        // Calculate Streak safely
         try {
+            // Only set loading to true if we don't have logs yet
+            if (historyLogs.length === 0) setLoading(true);
+
+            const logs: DailyLog[] = await HistoryService.getAllLogs().catch(e => {
+                console.error("Failed to load persistence logs", e);
+                return [];
+            });
+
+            // Ensure today's log from context is included/updated
+            if (state.todayLog && state.todayLog.date) {
+                const todayIndex = logs.findIndex(l => l.date === state.todayLog!.date);
+                if (todayIndex >= 0) {
+                    logs[todayIndex] = state.todayLog;
+                } else {
+                    logs.push(state.todayLog);
+                }
+            }
+
+            // Sanitize logs
+            const validLogs = logs.filter(l => l && l.date && !isNaN(new Date(l.date).getTime()));
+            setHistoryLogs(validLogs);
+
+            // Calculate Streak safely
             const currentStreak = StatsService.calculateCurrentStreak(validLogs);
             setStreak(currentStreak);
-        } catch (e) {
-            console.error("Error calculating streak:", e);
-            setStreak(0);
-        }
 
-        setLoading(false);
+        } catch (error) {
+            console.error("Critical error loading progress data:", error);
+            // Don't crash, just show empty state
+        } finally {
+            clearTimeout(timeoutId);
+            setLoading(false);
+        }
     };
 
     if (loading && historyLogs.length === 0) {

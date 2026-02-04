@@ -18,9 +18,20 @@ const SocialScreen = () => {
 
     const loadGroups = async () => {
         setLoading(true);
-        const userGroups = await GroupService.getUserGroups();
-        setGroups(userGroups);
-        setLoading(false);
+        try {
+            const userGroups = await GroupService.getUserGroups();
+            if (Array.isArray(userGroups)) {
+                setGroups(userGroups);
+            } else {
+                console.warn('SocialScreen: Invalid group data format', userGroups);
+                setGroups([]);
+            }
+        } catch (error) {
+            console.error('SocialScreen: Error loading groups', error);
+            setGroups([]);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useFocusEffect(
@@ -37,33 +48,37 @@ const SocialScreen = () => {
         navigation.navigate('JoinGroup');
     };
 
-    const renderGroupItem = ({ item }: { item: ChallengeGroup }) => (
-        <TouchableOpacity
-            style={styles.groupCard}
-            onPress={() => navigation.navigate('GroupDetail', { groupId: item.id })}
-        >
-            <View style={styles.cardContent}>
-                <View style={styles.cardHeader}>
-                    <Text style={styles.groupName}>{item.name}</Text>
-                    <View style={styles.memberBadge}>
-                        <Text style={{ fontSize: 16 }}>👥</Text>
-                        <Text style={styles.memberCount}>{item.members.length}</Text>
-                    </View>
-                </View>
+    const renderGroupItem = ({ item }: { item: ChallengeGroup }) => {
+        if (!item) return null;
 
-                {item.activeChallenge ? (
-                    <View style={styles.challengePreview}>
-                        <Text style={styles.challengeTitle}>🔥 {item.activeChallenge.title}</Text>
-                        <Text style={styles.challengeStatus}>
-                            Ends in {Math.ceil((new Date(item.activeChallenge.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days
-                        </Text>
+        return (
+            <TouchableOpacity
+                style={styles.groupCard}
+                onPress={() => navigation.navigate('GroupDetail', { groupId: item.id })}
+            >
+                <View style={styles.cardContent}>
+                    <View style={styles.cardHeader}>
+                        <Text style={styles.groupName}>{item.name || 'Unnamed Group'}</Text>
+                        <View style={styles.memberBadge}>
+                            <Text style={{ fontSize: 16 }}>👥</Text>
+                            <Text style={styles.memberCount}>{item.members ? item.members.length : 0}</Text>
+                        </View>
                     </View>
-                ) : (
-                    <Text style={styles.noChallengeText}>No active challenge</Text>
-                )}
-            </View>
-        </TouchableOpacity>
-    );
+
+                    {item.activeChallenge ? (
+                        <View style={styles.challengePreview}>
+                            <Text style={styles.challengeTitle}>🔥 {item.activeChallenge.title || 'Challenge'}</Text>
+                            <Text style={styles.challengeStatus}>
+                                Ends in {Math.ceil((new Date(item.activeChallenge.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days
+                            </Text>
+                        </View>
+                    ) : (
+                        <Text style={styles.noChallengeText}>No active challenge</Text>
+                    )}
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -76,7 +91,7 @@ const SocialScreen = () => {
                 style={{ flex: 1 }}
                 data={groups}
                 renderItem={renderGroupItem}
-                keyExtractor={item => item.id}
+                keyExtractor={item => item.id || Math.random().toString()}
                 contentContainerStyle={styles.listContent}
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
