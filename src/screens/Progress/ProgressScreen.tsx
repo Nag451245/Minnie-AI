@@ -42,7 +42,7 @@ export default function ProgressScreen() {
     const loadHistory = async () => {
         const logs = await HistoryService.getAllLogs();
         // Ensure today's log from context is included/updated in the list for immediate feedback
-        if (state.todayLog) {
+        if (state.todayLog && state.todayLog.date) {
             const todayIndex = logs.findIndex(l => l.date === state.todayLog!.date);
             if (todayIndex >= 0) {
                 logs[todayIndex] = state.todayLog;

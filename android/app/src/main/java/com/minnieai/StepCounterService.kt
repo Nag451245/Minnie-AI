@@ -235,7 +235,7 @@ class StepCounterService : Service(), SensorEventListener {
     private fun updateNotification(steps: Int) {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Minnie AI - Step Tracking")
-            .setContentText("$steps steps active")
+            .setContentText("$steps steps recorded this session")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
