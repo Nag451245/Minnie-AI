@@ -1,10 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-// Removed LinearGradient to avoid build issues
-// import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-
 import { Colors, Typography, Spacing } from '../../constants/theme';
 import GroupService from '../../services/GroupService';
 import { ChallengeGroup, RootStackParamList } from '../../types';
@@ -32,19 +30,11 @@ const SocialScreen = () => {
     );
 
     const handleCreateGroup = () => {
-        // navigation.navigate('CreateGroup');
-        console.log('Create Group');
+        navigation.navigate('CreateGroup');
     };
 
     const handleJoinGroup = () => {
-        // navigation.navigate('JoinGroup');
-        console.log('Join Group');
-
-        // Mock join for demo
-        GroupService.joinGroup('DEMO123', state.user!)
-            .then(res => {
-                if (res) loadGroups();
-            });
+        navigation.navigate('JoinGroup');
     };
 
     const renderGroupItem = ({ item }: { item: ChallengeGroup }) => (
@@ -76,7 +66,7 @@ const SocialScreen = () => {
     );
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <View style={styles.header}>
                 <Text style={styles.title}>Community</Text>
                 <Text style={styles.subtitle}>Challenge friends & stay motivated!</Text>
@@ -105,7 +95,7 @@ const SocialScreen = () => {
                 <Text style={{ fontSize: 24, color: '#FFF' }}>➕</Text>
                 <Text style={styles.fabText}>New Group</Text>
             </TouchableOpacity>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -115,12 +105,12 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.background,
     },
     header: {
-        paddingTop: 60,
         paddingHorizontal: Spacing.lg,
         paddingBottom: Spacing.lg,
         backgroundColor: Colors.surface,
         borderBottomWidth: 1,
         borderBottomColor: Colors.border,
+        paddingTop: Spacing.md,
     },
     title: {
         fontFamily: Typography.fontFamily.bold,
@@ -135,7 +125,7 @@ const styles = StyleSheet.create({
     },
     listContent: {
         padding: Spacing.md,
-        paddingBottom: 200,
+        paddingBottom: 200, // Explicitly large padding for FAB
     },
     groupCard: {
         marginBottom: Spacing.md,
@@ -235,7 +225,7 @@ const styles = StyleSheet.create({
     },
     fab: {
         position: 'absolute',
-        bottom: 24,
+        bottom: Platform.OS === 'ios' ? 110 : 90, // Clear TabBar
         right: 24,
         flexDirection: 'row',
         alignItems: 'center',

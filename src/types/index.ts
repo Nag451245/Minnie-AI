@@ -152,6 +152,7 @@ export type RootStackParamList = {
     AchievementDetail: { achievement: Achievement };
     GroupDetail: { groupId: string };
     CreateGroup: undefined;
+    JoinGroup: undefined;
 };
 
 // Onboarding Step

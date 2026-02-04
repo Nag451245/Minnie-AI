@@ -16,6 +16,7 @@ import LogActivityScreen from '../screens/Log/LogActivityScreen';
 
 import CreateGroupScreen from '../screens/Social/CreateGroupScreen';
 import GroupDetailScreen from '../screens/Social/GroupDetailScreen';
+import JoinGroupScreen from '../screens/Social/JoinGroupScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -62,6 +63,14 @@ export default function RootNavigator() {
                     <Stack.Screen
                         name="CreateGroup"
                         component={CreateGroupScreen}
+                        options={{
+                            presentation: 'modal',
+                            animation: 'slide_from_bottom',
+                        }}
+                    />
+                    <Stack.Screen
+                        name="JoinGroup"
+                        component={JoinGroupScreen}
                         options={{
                             presentation: 'modal',
                             animation: 'slide_from_bottom',

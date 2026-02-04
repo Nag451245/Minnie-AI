@@ -9,6 +9,7 @@ import {
     ScrollView,
     TouchableOpacity,
     Dimensions,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -40,8 +41,13 @@ export default function ProgressScreen() {
     );
 
     const loadHistory = async () => {
+        // Only set loading to true if we don't have logs yet (prevent flash on refocuse)
+        if (historyLogs.length === 0) setLoading(true);
+
         const logs = await HistoryService.getAllLogs();
-        // Ensure today's log from context is included/updated in the list for immediate feedback
+        // ... (existing logic)
+
+        // Ensure today's log from context is included/updated
         if (state.todayLog && state.todayLog.date) {
             const todayIndex = logs.findIndex(l => l.date === state.todayLog!.date);
             if (todayIndex >= 0) {
@@ -50,7 +56,8 @@ export default function ProgressScreen() {
                 logs.push(state.todayLog);
             }
         }
-        // Sanitize logs to prevent crashes
+
+        // Sanitize logs
         const validLogs = logs.filter(l => l && l.date && !isNaN(new Date(l.date).getTime()));
         setHistoryLogs(validLogs);
 
@@ -65,6 +72,15 @@ export default function ProgressScreen() {
 
         setLoading(false);
     };
+
+    if (loading && historyLogs.length === 0) {
+        return (
+            <SafeAreaView style={[styles.container, styles.loadingContainer]}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.loadingText}>Loading progress...</Text>
+            </SafeAreaView>
+        );
+    }
 
     const getWeeklyData = () => {
         // Get last 7 days ending today
@@ -497,5 +513,14 @@ const styles = StyleSheet.create({
     },
     positive: {
         color: Colors.activity,
+    },
+    loadingContainer: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: Spacing.md,
+        fontSize: Typography.fontSize.md,
+        color: Colors.textSecondary,
     },
 });
