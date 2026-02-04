@@ -218,8 +218,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         };
         dispatch({ type: 'SET_MINNIE_STATE', payload: moodToMinnieState[mood] });
 
-        // Persist
-        HistoryService.saveDailyLog(updatedLog);
+        // Persist safely
+        HistoryService.saveDailyLog(updatedLog).catch(e => {
+            console.warn("Failed to save daily log", e);
+        });
     };
 
     // Helper: Update steps

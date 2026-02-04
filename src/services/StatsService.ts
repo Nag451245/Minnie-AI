@@ -8,8 +8,12 @@ class StatsService {
     calculateCurrentStreak(logs: DailyLog[]): number {
         if (!logs || logs.length === 0) return 0;
 
-        // Sort logs by date descending (newest first)
-        const sortedLogs = [...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        // Filter and sort logs by date descending (newest first)
+        const sortedLogs = logs
+            .filter(l => l && l.date && !isNaN(new Date(l.date).getTime()))
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        if (sortedLogs.length === 0) return 0;
 
         // Check today / yesterday to start streak
         const today = new Date().toISOString().split('T')[0];
@@ -36,7 +40,16 @@ class StatsService {
             currentDateToCheck = yesterday; // Start check from yesterday
         }
 
+        let loopGuard = 0;
+        const MAX_LOOPS = 3650; // Protect against infinite loops (10 years)
+
         while (true) {
+            loopGuard++;
+            if (loopGuard > MAX_LOOPS) {
+                console.warn("StatsService: infinite loop detected in streak calculation");
+                break;
+            }
+
             if (logMap.has(currentDateToCheck)) {
                 const log = logMap.get(currentDateToCheck);
                 if (log && log.steps >= (log.stepGoal || 7000)) {
