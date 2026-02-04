@@ -20,6 +20,7 @@ const STORAGE_KEYS = {
     DAILY_LOGS: '@minnie_daily_logs',
     CURRENT_STREAK: '@minnie_current_streak',
     LAST_RAW_STEPS: '@minnie_last_raw_steps',
+    TTS_ENABLED: '@minnie_tts_enabled',
 };
 
 class StorageService {
@@ -228,6 +229,26 @@ class StorageService {
         } catch (error) {
             console.error('Error getting streak:', error);
             return 0;
+        }
+    }
+
+    // TTS Settings
+    async setTtsEnabled(enabled: boolean): Promise<void> {
+        try {
+            await AsyncStorage.setItem(STORAGE_KEYS.TTS_ENABLED, JSON.stringify(enabled));
+        } catch (error) {
+            console.error('Error saving TTS setting:', error);
+        }
+    }
+
+    async isTtsEnabled(): Promise<boolean> {
+        try {
+            const data = await AsyncStorage.getItem(STORAGE_KEYS.TTS_ENABLED);
+            // Default to true if not set
+            return data ? JSON.parse(data) : true;
+        } catch (error) {
+            console.error('Error getting TTS setting:', error);
+            return true;
         }
     }
 

@@ -1,4 +1,4 @@
-import { MinnieState } from '../types';
+import { MinnieState, DailyLog, ChatMessage } from '../types';
 import StorageService from './StorageService';
 
 // Try to load API key from local config file (gitignored)
@@ -9,6 +9,17 @@ try {
     DEFAULT_API_KEY = localConfig.OPENAI_API_KEY || '';
 } catch (e) {
     console.log('[AiService] No local config found, will rely on user-configured key');
+}
+
+export interface AiContext {
+    history?: { role: string; content: string }[];
+    userStats?: {
+        steps: number;
+        stepGoal: number;
+        mood?: string;
+        streak: number;
+        name?: string;
+    };
 }
 
 // Mock responses for fallback
@@ -69,7 +80,7 @@ class AiService {
         return !!this.apiKey || !!DEFAULT_API_KEY;
     }
 
-    async getResponse(userMessage: string): Promise<{ message: string; state: MinnieState }> {
+    async getResponse(userMessage: string, context?: AiContext): Promise<{ message: string; state: MinnieState }> {
         console.log('[AiService] 📥 getResponse called with message:', userMessage);
 
         // Ensure service is initialized
@@ -82,15 +93,41 @@ class AiService {
 
         if (this.apiKey) {
             console.log('[AiService] 🌐 Calling OpenAI API...');
-            return this.fetchOpenAiResponse(userMessage);
+            return this.fetchOpenAiResponse(userMessage, context);
         }
 
         console.log('[AiService] ⚠️ No API key, using mock response');
         return this.getMockResponse(userMessage);
     }
 
-    private async fetchOpenAiResponse(message: string): Promise<{ message: string; state: MinnieState }> {
+    private async fetchOpenAiResponse(message: string, context?: AiContext): Promise<{ message: string; state: MinnieState }> {
         try {
+            // Build system prompt with context
+            let systemPrompt = `You are Minnie, a warm, empathetic AI wellness coach with a bubbly, supportive personality. 
+            
+Guidelines:
+- NEVER repeat the same phrase twice in a conversation.
+- Use varied sentence structures and creative metaphors.
+- Keep responses conversational (2-3 sentences).
+- Use emojis sparingly (max 1-2 per message).
+- Focus on holistic wellness (physical, mental, sleep, hydration).
+- If the user is stressed, be calming. If they are active, be high energy.`;
+
+            if (context?.userStats) {
+                const { steps, stepGoal, mood, streak, name } = context.userStats;
+                systemPrompt += `\n\nUser Context:
+- Name: ${name || 'Friend'}
+- Steps Today: ${steps} / ${stepGoal}
+- Current Mood: ${mood || 'Unknown'}
+- Log Streak: ${streak} days`;
+            }
+
+            const messages = [
+                { role: "system", content: systemPrompt },
+                ...(context?.history || []),
+                { role: "user", content: message }
+            ];
+
             const response = await fetch(this.endpoint, {
                 method: 'POST',
                 headers: {
@@ -99,15 +136,9 @@ class AiService {
                 },
                 body: JSON.stringify({
                     model: "gpt-5.2",
-                    messages: [
-                        {
-                            role: "system",
-                            content: "You are Minnie, an empathetic AI wellness coach. Keep responses short (under 2 sentences) and encouraging. Use relevant emojis. Focus on health, fitness, mental wellness, and positive motivation."
-                        },
-                        { role: "user", content: message }
-                    ],
-                    max_completion_tokens: 100,
-                    temperature: 0.7
+                    messages: messages,
+                    max_completion_tokens: 200, // Increased for richer responses
+                    temperature: 0.85 // Increased for more dynamic/creative responses
                 })
             });
 
@@ -138,26 +169,31 @@ class AiService {
 
         // Check for calming context
         if (lowerMessage.includes('stress') || lowerMessage.includes('anxious') ||
-            lowerResponse.includes('breathe') || lowerResponse.includes('relax')) {
+            lowerResponse.includes('breathe') || lowerResponse.includes('relax') || lowerResponse.includes('calm')) {
             return 'calming';
         }
 
         // Check for energetic/encouraging context
         if (lowerResponse.includes('!') && (lowerResponse.includes('great') ||
-            lowerResponse.includes('amazing') || lowerResponse.includes('awesome'))) {
+            lowerResponse.includes('amazing') || lowerResponse.includes('awesome') || lowerResponse.includes('go for it'))) {
             return 'encouraging';
         }
 
         // Check for celebratory context
         if (lowerResponse.includes('congratulations') || lowerResponse.includes('🎉') ||
-            lowerResponse.includes('achieved')) {
+            lowerResponse.includes('achieved') || lowerResponse.includes('proud')) {
             return 'celebratory';
         }
 
         // Check for thinking context
         if (lowerMessage.includes('what') || lowerMessage.includes('how') ||
-            lowerMessage.includes('suggest')) {
+            lowerMessage.includes('suggest') || lowerMessage.includes('recommend')) {
             return 'thinking';
+        }
+
+        // Check for energized/active
+        if (lowerMessage.includes('run') || lowerMessage.includes('workout') || lowerMessage.includes('gym')) {
+            return 'energized';
         }
 
         // Default to happy

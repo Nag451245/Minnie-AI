@@ -123,6 +123,21 @@ export default function HomeScreen() {
         return "Ready to start moving? Every step counts towards your daily goal!";
     };
 
+    // Get mood display with emoji and label
+    const getMoodDisplay = (): { emoji: string; label: string } => {
+        const moodMap: Record<string, { emoji: string; label: string }> = {
+            happy: { emoji: '😊', label: 'Happy' },
+            sad: { emoji: '😢', label: 'Sad' },
+            stressed: { emoji: '😰', label: 'Stressed' },
+            energetic: { emoji: '⚡', label: 'Energetic' },
+            bored: { emoji: '😐', label: 'Bored' },
+        };
+        if (todayStats.mood && moodMap[todayStats.mood]) {
+            return moodMap[todayStats.mood];
+        }
+        return { emoji: '😊', label: 'Log mood' };
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <ScrollView
@@ -208,8 +223,8 @@ export default function HomeScreen() {
 
                     {/* Mood Card */}
                     <View style={styles.statCard}>
-                        <Text style={styles.statEmoji}>😊</Text>
-                        <Text style={styles.statValue}>Happy</Text>
+                        <Text style={styles.statEmoji}>{getMoodDisplay().emoji}</Text>
+                        <Text style={styles.statValue}>{getMoodDisplay().label}</Text>
                         <Text style={styles.statLabel}>Mood</Text>
                     </View>
                 </View>

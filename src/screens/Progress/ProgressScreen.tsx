@@ -11,9 +11,13 @@ import {
     Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../constants/theme';
 import { useApp } from '../../context/AppContext';
 import MinnieAvatar from '../../components/Minnie/MinnieAvatar';
+import HistoryService from '../../services/HistoryService';
+import CalendarView from '../../components/CalendarView';
+import { DailyLog } from '../../types';
 
 const { width } = Dimensions.get('window');
 
@@ -22,83 +26,101 @@ type TimeRange = 'week' | 'month' | '3months';
 export default function ProgressScreen() {
     const { state } = useApp();
     const [timeRange, setTimeRange] = useState<TimeRange>('week');
+    const [historyLogs, setHistoryLogs] = useState<DailyLog[]>([]);
+    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [loading, setLoading] = useState(true);
 
-    // Get real data from context - if no data, show empty state
-    const currentWeight = state.user?.currentWeight || 0;
-    const targetWeight = state.user?.targetWeight || 0;
-    const streakDays = state.currentStreak || 0;
-    const todaySteps = state.todayLog?.steps || 0;
-    const todayWater = state.todayLog?.waterIntake || 0;
-    const stepGoal = state.user?.stepGoal || 7500;
+    // Load data when screen comes into focus
+    useFocusEffect(
+        React.useCallback(() => {
+            loadHistory();
+        }, [state.todayLog]) // Reload if today's log changes
+    );
 
-    // Since we only have today's data in context, show what we have
-    // In a full implementation, this would load historical data from storage
-    const weeklyData = {
-        weight: currentWeight ? [currentWeight] : [],
-        steps: todaySteps ? [todaySteps] : [],
-        water: todayWater ? [todayWater] : [],
+    const loadHistory = async () => {
+        const logs = await HistoryService.getAllLogs();
+        // Ensure today's log from context is included/updated in the list for immediate feedback
+        if (state.todayLog) {
+            const todayIndex = logs.findIndex(l => l.date === state.todayLog!.date);
+            if (todayIndex >= 0) {
+                logs[todayIndex] = state.todayLog;
+            } else {
+                logs.push(state.todayLog);
+            }
+        }
+        setHistoryLogs(logs);
+        setLoading(false);
     };
 
-    // Calculate stats from available data
-    const stats = {
-        weightChange: currentWeight && targetWeight ? currentWeight - targetWeight : 0,
-        avgSteps: todaySteps, // Only have today's data
-        avgWater: todayWater,
-        streakDays: streakDays,
-        goalDays: todaySteps >= stepGoal ? 1 : 0,
-        totalDays: todaySteps > 0 ? 1 : 0,
-        moodBreakdown: state.todayLog?.mood
-            ? [{ mood: state.todayLog.mood, count: 1, color: Colors.activity }]
-            : [],
+    const getWeeklyData = () => {
+        // Get last 7 days ending today
+        const days = [];
+        const steps = [];
+        const weight = [];
+        const water = [];
+
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const log = historyLogs.find(l => l.date === dateStr);
+
+            days.push(d.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0));
+            steps.push(log ? log.steps : 0);
+            water.push(log ? log.waterIntake : 0);
+            if (log?.weight) weight.push(log.weight);
+        }
+
+        return { days, steps, weight, water };
     };
 
-    // Simple bar chart renderer
-    const renderBarChart = (data: number[], maxValue: number, color: string) => {
-        return (
-            <View style={styles.barChart}>
-                {data.map((value, index) => (
-                    <View key={index} style={styles.barColumn}>
-                        <View
-                            style={[
-                                styles.bar,
-                                {
-                                    height: `${(value / maxValue) * 100}%`,
-                                    backgroundColor: color,
-                                },
-                            ]}
-                        />
-                        <Text style={styles.barLabel}>
-                            {['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}
-                        </Text>
-                    </View>
-                ))}
-            </View>
-        );
+    const weeklyData = getWeeklyData();
+
+    // Calculate stats
+    const calculateStats = () => {
+        const totalSteps = weeklyData.steps.reduce((a, b) => a + b, 0);
+        const avgSteps = Math.round(totalSteps / 7);
+
+        // Weight change
+        const currentWeight = state.user?.currentWeight || 0;
+        const startWeight = weeklyData.weight.length > 0 ? weeklyData.weight[0] : currentWeight;
+        const weightChange = currentWeight - startWeight;
+
+        // Mood breakdown from history
+        const moodCounts: Record<string, number> = {};
+        historyLogs.forEach(log => {
+            if (log.mood) {
+                moodCounts[log.mood] = (moodCounts[log.mood] || 0) + 1;
+            }
+        });
+
+        const moodBreakdown = Object.entries(moodCounts).map(([mood, count]) => ({
+            mood,
+            count,
+            color: getMoodColor(mood)
+        })).sort((a, b) => b.count - a.count);
+
+        return {
+            avgSteps,
+            weightChange: parseFloat(weightChange.toFixed(1)),
+            moodBreakdown
+        };
     };
 
-    // Consistency heatmap - show empty state if no data
-    const renderHeatmap = () => {
-        // Since we don't have historical data yet, show a mostly empty heatmap
-        // with only today potentially filled if goals were met
-        const days = Array.from({ length: 28 }, (_, i) => ({
-            day: i + 1,
-            completed: i === 27 && todaySteps >= stepGoal, // Only today (last day) if goal met
-        }));
+    const stats = calculateStats();
 
-        return (
-            <View style={styles.heatmapGrid}>
-                {days.map((day, index) => (
-                    <View
-                        key={index}
-                        style={[
-                            styles.heatmapCell,
-                            day.completed ? styles.heatmapCompleted : styles.heatmapMissed,
-                        ]}
-                    />
-                ))}
-            </View>
-        );
+    const getMoodColor = (mood: string) => {
+        switch (mood) {
+            case 'happy': return Colors.secondary;
+            case 'sad': return Colors.textTertiary;
+            case 'stressed': return Colors.primary;
+            case 'energetic': return Colors.activity;
+            default: return Colors.info;
+        }
     };
+
+    // Render logic...
+    // (Helper render functions remain same or slightly adapted)
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -113,19 +135,14 @@ export default function ProgressScreen() {
                     <MinnieAvatar state="happy" size="small" animated />
                 </View>
 
-                {/* Time Range Selector */}
-                <View style={styles.timeSelector}>
-                    {(['week', 'month', '3months'] as TimeRange[]).map((range) => (
-                        <TouchableOpacity
-                            key={range}
-                            style={[styles.timeButton, timeRange === range && styles.timeButtonActive]}
-                            onPress={() => setTimeRange(range)}
-                        >
-                            <Text style={[styles.timeButtonText, timeRange === range && styles.timeButtonTextActive]}>
-                                {range === 'week' ? 'Week' : range === 'month' ? 'Month' : '3 Months'}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
+                {/* Calendar View */}
+                <View style={styles.chartCard}>
+                    <Text style={styles.chartTitle}>📆 Consistency Calendar</Text>
+                    <CalendarView
+                        logs={historyLogs}
+                        selectedDate={selectedDate}
+                        onSelectDate={setSelectedDate}
+                    />
                 </View>
 
                 {/* Summary Cards */}
@@ -135,7 +152,7 @@ export default function ProgressScreen() {
                         <Text style={[styles.summaryValue, stats.weightChange < 0 && styles.positive]}>
                             {stats.weightChange > 0 ? '+' : ''}{stats.weightChange} kg
                         </Text>
-                        <Text style={styles.summaryLabel}>Weight Change</Text>
+                        <Text style={styles.summaryLabel}>Weekly Change</Text>
                     </View>
                     <View style={[styles.summaryCard, styles.stepsCard]}>
                         <Text style={styles.summaryIcon}>👟</Text>
@@ -144,109 +161,55 @@ export default function ProgressScreen() {
                     </View>
                 </View>
 
-                {/* Weight Trend */}
-                <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>📈 Weight Trend</Text>
-                    <View style={styles.chartContainer}>
-                        {/* Simplified line representation */}
-                        <View style={styles.weightLine}>
-                            {weeklyData.weight.map((w, i) => (
-                                <View key={i} style={styles.weightPoint}>
-                                    <View style={[styles.dot, { bottom: ((w - 74) / 2) * 100 }]} />
-                                </View>
-                            ))}
-                        </View>
-                        <View style={styles.chartLabels}>
-                            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
-                                <Text key={i} style={styles.chartLabel}>{day}</Text>
-                            ))}
-                        </View>
-                    </View>
-                    <Text style={styles.chartInsight}>
-                        ↓ You've lost 0.8 kg this week! Keep it up! 🎉
-                    </Text>
-                </View>
-
                 {/* Steps Chart */}
                 <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>👟 Daily Steps</Text>
+                    <Text style={styles.chartTitle}>👟 Weekly Steps</Text>
                     <View style={styles.chartWrapper}>
-                        {renderBarChart(weeklyData.steps, 10000, Colors.activity)}
-                    </View>
-                    <Text style={styles.chartInsight}>
-                        Best day: Thursday (9,100 steps)
-                    </Text>
-                </View>
-
-                {/* Consistency Calendar */}
-                <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>📆 Consistency Heatmap</Text>
-                    {renderHeatmap()}
-                    <View style={styles.heatmapLegend}>
-                        <View style={styles.legendItem}>
-                            <View style={[styles.legendDot, styles.heatmapCompleted]} />
-                            <Text style={styles.legendText}>Goal Met</Text>
-                        </View>
-                        <View style={styles.legendItem}>
-                            <View style={[styles.legendDot, styles.heatmapMissed]} />
-                            <Text style={styles.legendText}>Missed</Text>
+                        {/* Reusing existing renderBarChart logic but with weeklyData.steps */}
+                        <View style={styles.barChart}>
+                            {weeklyData.steps.map((value, index) => (
+                                <View key={index} style={styles.barColumn}>
+                                    <View
+                                        style={[
+                                            styles.bar,
+                                            {
+                                                height: `${Math.min((value / 10000) * 100, 100)}%`,
+                                                backgroundColor: Colors.activity,
+                                            },
+                                        ]}
+                                    />
+                                    <Text style={styles.barLabel}>{weeklyData.days[index]}</Text>
+                                </View>
+                            ))}
                         </View>
                     </View>
                 </View>
 
                 {/* Mood Breakdown */}
-                <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>🎭 Mood Breakdown</Text>
-                    <View style={styles.moodBreakdown}>
-                        {stats.moodBreakdown.map((item, index) => (
-                            <View key={index} style={styles.moodItem}>
-                                <View style={[styles.moodBar, { backgroundColor: item.color, flex: item.count }]} />
-                                <Text style={styles.moodLabel}>{item.mood} ({item.count})</Text>
-                            </View>
-                        ))}
+                {stats.moodBreakdown.length > 0 && (
+                    <View style={styles.chartCard}>
+                        <Text style={styles.chartTitle}>🎭 Mood Breakdown</Text>
+                        <View style={styles.moodBreakdown}>
+                            {stats.moodBreakdown.map((item, index) => (
+                                <View key={index} style={styles.moodItem}>
+                                    <View style={[styles.moodBar, { backgroundColor: item.color, flex: item.count }]} />
+                                    <Text style={styles.moodLabel}>{item.mood} ({item.count})</Text>
+                                </View>
+                            ))}
+                        </View>
                     </View>
-                    <Text style={styles.chartInsight}>
-                        You felt happy 43% of the time this week! 😊
-                    </Text>
-                </View>
+                )}
 
                 {/* Minnie Insights */}
                 <View style={styles.insightCard}>
                     <MinnieAvatar state="thinking" size="medium" animated />
                     <View style={styles.insightContent}>
-                        <Text style={styles.insightTitle}>📊 Minnie's Weekly Insights</Text>
+                        <Text style={styles.insightTitle}>📊 Minnie's Insights</Text>
                         <Text style={styles.insightText}>
-                            You're most consistent on weekdays! Your weekend activity drops by 40%.
-                            Try scheduling a Sunday morning walk to keep momentum going.
+                            {stats.avgSteps > 7000
+                                ? "You're crushing your step goals this week! Keep that momentum going! 🔥"
+                                : "A little more walking could boost your energy. Let's aim for 7,000 steps tomorrow! 👟"}
                         </Text>
-                    </View>
-                </View>
-
-                {/* Achievements */}
-                <View style={styles.achievementsCard}>
-                    <Text style={styles.chartTitle}>🏆 Recent Achievements</Text>
-                    <View style={styles.achievementsList}>
-                        <View style={styles.achievement}>
-                            <Text style={styles.achievementIcon}>🔥</Text>
-                            <View style={styles.achievementInfo}>
-                                <Text style={styles.achievementTitle}>4-Day Streak</Text>
-                                <Text style={styles.achievementDate}>Today</Text>
-                            </View>
-                        </View>
-                        <View style={styles.achievement}>
-                            <Text style={styles.achievementIcon}>👟</Text>
-                            <View style={styles.achievementInfo}>
-                                <Text style={styles.achievementTitle}>10K Steps in One Day</Text>
-                                <Text style={styles.achievementDate}>2 days ago</Text>
-                            </View>
-                        </View>
-                        <View style={styles.achievement}>
-                            <Text style={styles.achievementIcon}>💧</Text>
-                            <View style={styles.achievementInfo}>
-                                <Text style={styles.achievementTitle}>Hydration Hero</Text>
-                                <Text style={styles.achievementDate}>3 days ago</Text>
-                            </View>
-                        </View>
                     </View>
                 </View>
             </ScrollView>

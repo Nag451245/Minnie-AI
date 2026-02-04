@@ -22,7 +22,7 @@ type LogType = 'weight' | 'water' | 'mood' | 'sleep' | 'activity' | null;
 
 export default function LogScreen() {
     const navigation = useNavigation();
-    const { state, dispatch, updateMood, updateWater, logWeight } = useApp();
+    const { state, dispatch, updateMood, updateWater, logWeight, updateSleep } = useApp();
     const [activeLog, setActiveLog] = useState<LogType>(null);
     const [weightValue, setWeightValue] = useState('');
     const [sleepHours, setSleepHours] = useState('');
@@ -62,7 +62,7 @@ export default function LogScreen() {
 
     const handleLogSleep = () => {
         if (sleepHours) {
-            // TODO: Save to database
+            updateSleep(parseFloat(sleepHours), sleepQuality);
             setSleepHours('');
             setSleepQuality('');
             setActiveLog(null);

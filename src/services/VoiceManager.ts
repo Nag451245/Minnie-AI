@@ -23,8 +23,8 @@ class VoiceManagerService {
     private async initTts() {
         try {
             await Tts.getInitStatus();
-            Tts.setDefaultRate(0.5);
-            Tts.setDefaultPitch(1.1); // Slightly higher pitch for Minnie
+            Tts.setDefaultRate(0.45); // Slightly slower for clarity
+            Tts.setDefaultPitch(1.0); // Neutral/Warm pitch
             // Tts.setDefaultLanguage('en-US'); // Fallback to default
         } catch (err) {
             console.error('TTS initialization error', err);
@@ -97,11 +97,27 @@ class VoiceManagerService {
         }
     }
 
+    private sanitizeTextForSpeech(text: string): string {
+        return text
+            .replace(/[\u{1F300}-\u{1F9FF}]/gu, '') // Remove emojis (range 1)
+            .replace(/[\u{1F600}-\u{1F64F}]/gu, '') // Remove emojis (range 2)
+            .replace(/[\u{1F680}-\u{1F6FF}]/gu, '') // Remove emojis (range 3)
+            .replace(/[\u{2600}-\u{26FF}]/gu, '')   // Remove misc symbols
+            .replace(/[\u{2700}-\u{27BF}]/gu, '')   // Remove dingbats
+            .replace(/\[.*?\]/g, '')                 // Remove [image] descriptions
+            .replace(/[*_~`#]/g, '')                 // Remove markdown chars
+            .replace(/\s+/g, ' ')                    // Normalize whitespace
+            .trim();
+    }
+
     public async speak(text: string) {
         try {
             // Stop any current speech
             Tts.stop();
-            Tts.speak(text);
+            const cleanText = this.sanitizeTextForSpeech(text);
+            if (cleanText.length > 0) {
+                Tts.speak(cleanText);
+            }
         } catch (e) {
             console.error(e);
         }

@@ -5,6 +5,7 @@ import React, { createContext, useContext, useReducer, useEffect, ReactNode } fr
 import { UserProfile, DailyLog, MoodType, MinnieState } from '../types';
 import StorageService from '../services/StorageService';
 import PedometerService from '../services/PedometerService';
+import HistoryService from '../services/HistoryService';
 
 
 // State interface
@@ -79,6 +80,7 @@ interface AppContextType {
     updateMood: (mood: MoodType) => void;
     updateSteps: (steps: number) => void;
     updateWater: (amount: number) => void;
+    updateSleep: (hours: number, quality?: string) => void;
     logWeight: (weight: number) => void;
     completeOnboarding: (user: UserProfile) => Promise<void>;
 }
@@ -174,8 +176,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
     };
 
+
+
+    // ... (existing helper function implementation to persist data)
+
     // Helper: Update mood
     const updateMood = (mood: MoodType) => {
+        const today = new Date().toISOString().split('T')[0];
+        const updatedLog: DailyLog = {
+            ...(state.todayLog || {
+                date: today,
+                steps: 0,
+                stepGoal: state.user?.stepGoal || 7000,
+                waterIntake: 0,
+                challengeCompleted: false,
+                weight: state.user?.currentWeight
+            }),
+            mood,
+            date: today // Ensure date is set
+        };
+
         dispatch({ type: 'UPDATE_TODAY_LOG', payload: { mood } });
 
         // Update Minnie's state based on mood
@@ -187,6 +207,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
             bored: 'encouraging',
         };
         dispatch({ type: 'SET_MINNIE_STATE', payload: moodToMinnieState[mood] });
+
+        // Persist
+        HistoryService.saveDailyLog(updatedLog);
     };
 
     // Helper: Update steps
@@ -199,39 +222,81 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } else if (steps >= stepGoal * 0.8) {
             dispatch({ type: 'SET_MINNIE_STATE', payload: 'encouraging' });
         }
+
+        // We typically don't save explicit log entries for every step update to avoid thrashing,
+        // but since we are moving to HistoryService, we might want to save periodically.
+        // For now, assume a background job or end-of-day sync might act, 
+        // OR we can save here if IO is cheap. Let's rely on PedometerService for step persistence for now?
+        // Actually, PedometerService saves to StorageService.dailySteps.
+        // We should probably sync it to HistoryService eventually.
     };
 
     // Helper: Update water - now handles null todayLog properly
     const updateWater = (amount: number) => {
         const today = new Date().toISOString().split('T')[0];
+        let updatedLog: DailyLog;
 
         if (!state.todayLog) {
             // Create new log if it doesn't exist
             const stepGoal = state.user?.stepGoal || 7500;
-            dispatch({
-                type: 'SET_TODAY_LOG',
-                payload: {
-                    date: today,
-                    steps: 0,
-                    stepGoal: stepGoal,
-                    challengeCompleted: false,
-                    waterIntake: amount,
-                    mood: undefined,
-                    weight: state.user?.currentWeight,
-                    sleepQuality: undefined,
-                    sleepHours: undefined,
-                }
-            });
+            updatedLog = {
+                date: today,
+                steps: 0,
+                stepGoal: stepGoal,
+                challengeCompleted: false,
+                waterIntake: amount,
+                weight: state.user?.currentWeight,
+            };
+            dispatch({ type: 'SET_TODAY_LOG', payload: updatedLog });
         } else {
             const currentWater = state.todayLog.waterIntake || 0;
-            dispatch({ type: 'UPDATE_TODAY_LOG', payload: { waterIntake: currentWater + amount } });
+            const newWater = currentWater + amount;
+            dispatch({ type: 'UPDATE_TODAY_LOG', payload: { waterIntake: newWater } });
+
+            updatedLog = {
+                ...state.todayLog,
+                waterIntake: newWater
+            };
         }
+
+        HistoryService.saveDailyLog(updatedLog);
     };
 
     // Helper: Log weight
     const logWeight = (weight: number) => {
         dispatch({ type: 'UPDATE_TODAY_LOG', payload: { weight } });
         dispatch({ type: 'UPDATE_USER', payload: { currentWeight: weight } });
+
+        if (state.todayLog) {
+            HistoryService.saveDailyLog({
+                ...state.todayLog,
+                weight
+            });
+        }
+    };
+
+    // Helper: Update sleep
+    const updateSleep = (hours: number, quality?: string) => {
+        const sleepQualityTyped = quality as 'good' | 'groggy' | 'terrible' | undefined;
+        dispatch({ type: 'UPDATE_TODAY_LOG', payload: { sleepHours: hours, sleepQuality: sleepQualityTyped } });
+
+        // Persist
+        const today = new Date().toISOString().split('T')[0];
+        const updatedLog: DailyLog = {
+            ...(state.todayLog || {
+                date: today,
+                steps: 0,
+                stepGoal: state.user?.stepGoal || 7000,
+                waterIntake: 0,
+                challengeCompleted: false,
+                weight: state.user?.currentWeight
+            }),
+            sleepHours: hours,
+            sleepQuality: sleepQualityTyped,
+            date: today
+        };
+
+        HistoryService.saveDailyLog(updatedLog);
     };
 
     // Helper: Complete onboarding
@@ -248,6 +313,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateMood,
         updateSteps,
         updateWater,
+        updateSleep,
         logWeight,
         completeOnboarding,
     };
