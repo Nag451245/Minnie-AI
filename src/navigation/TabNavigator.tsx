@@ -15,6 +15,7 @@ import LogScreen from '../screens/Log/LogScreen';
 import CoachScreen from '../screens/Coach/CoachScreen';
 import ProgressScreen from '../screens/Progress/ProgressScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
+import SocialScreen from '../screens/Social/SocialScreen';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -53,7 +54,10 @@ export default function TabNavigator() {
             <Tab.Screen
                 name="Progress"
                 component={ProgressScreen}
-
+            />
+            <Tab.Screen
+                name="Social"
+                component={SocialScreen}
             />
             <Tab.Screen
                 name="Settings"

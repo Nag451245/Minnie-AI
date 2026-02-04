@@ -6,6 +6,7 @@ import { UserProfile, DailyLog, MoodType, MinnieState } from '../types';
 import StorageService from '../services/StorageService';
 import PedometerService from '../services/PedometerService';
 import HistoryService from '../services/HistoryService';
+import GroupService from '../services/GroupService';
 
 
 // State interface
@@ -98,11 +99,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         loadInitialData();
 
         // Subscribe to real-time step updates
-        const unsubscribe = PedometerService.addStepListener((steps) => {
+        const unsubscribe = PedometerService.addStepListener(async (steps) => {
             dispatch({
                 type: 'UPDATE_TODAY_LOG',
                 payload: { steps: steps }
             });
+
+            // Sync with Social Groups
+            try {
+                // We could optimize this to not run on every step, but for now it ensures consistency
+                const streak = state.currentStreak || 0;
+                await GroupService.updateMyStats(steps, streak);
+            } catch (e) {
+                console.warn('Failed to sync group stats', e);
+            }
         });
 
         return () => {

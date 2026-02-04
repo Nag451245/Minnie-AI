@@ -215,11 +215,43 @@ class NotificationService {
         );
     }
 
-    /**
-     * Cancel all scheduled notifications
-     */
     async cancelAllScheduled(): Promise<void> {
         await notifee.cancelAllNotifications();
+    }
+
+    /**
+     * Schedule a notification to fire after a delay (e.g., 45 mins)
+     */
+    async scheduleInactivityNotification(title: string, body: string, delayMinutes: number = 45) {
+        // Cancel any existing nudge first
+        await notifee.cancelNotification('inactivity-nudge');
+
+        // Create a time-based trigger
+        const trigger: TimestampTrigger = {
+            type: TriggerType.TIMESTAMP,
+            timestamp: Date.now() + delayMinutes * 60 * 1000,
+        };
+
+        // Create a trigger notification
+        await notifee.createTriggerNotification(
+            {
+                id: 'inactivity-nudge', // Fixed ID to easily cancel/replace
+                title: title,
+                body: body,
+                android: {
+                    channelId: CHANNELS.ACTIVITY_NUDGE,
+                    smallIcon: 'ic_notification',
+                    pressAction: {
+                        id: 'default',
+                    },
+                },
+            },
+            trigger,
+        );
+    }
+
+    async cancelInactivityNotification() {
+        await notifee.cancelNotification('inactivity-nudge');
     }
 }
 

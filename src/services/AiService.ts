@@ -213,6 +213,52 @@ Guidelines:
             state: 'happy',
         };
     }
+
+    /**
+     * Generate a short, punchy message for an inactivity notification
+     */
+    async generateInactivityMessage(firstName: string = 'Friend'): Promise<{ title: string; body: string }> {
+        // Fallback messages
+        const fallbacks = [
+            { title: `Hey ${firstName}! 👋`, body: "Miss you! Come say hi and let's check your stats." },
+            { title: "Time for a break? ☕", body: "Take a moment for yourself. How are you feeling?" },
+            { title: "Minnie here! 🌟", body: "Things are quiet... hope you're having a great day!" },
+        ];
+
+        if (!this.apiKey) return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+
+        try {
+            const systemPrompt = `You are Minnie, a caring wellness AI. Generate a short, push-notification style message (max 15 words) to re-engage a user named ${firstName} who hasn't opened the app in a while. Be warm, curious, and inviting. Return ONLY JSON format: {"title": "...", "body": "..."}`;
+
+            const response = await fetch(this.endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: "gpt-5.2",
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: "Generate notification." }
+                    ],
+                    max_completion_tokens: 50,
+                    temperature: 0.9,
+                    response_format: { type: "json_object" }
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const content = JSON.parse(data.choices[0].message.content);
+                return { title: content.title || "Hey!", body: content.body || "Come checking in!" };
+            }
+        } catch (e) {
+            console.error('Failed to generate notification:', e);
+        }
+
+        return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    }
 }
 
 export const aiService = new AiService();

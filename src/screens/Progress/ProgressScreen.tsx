@@ -17,7 +17,8 @@ import { useApp } from '../../context/AppContext';
 import MinnieAvatar from '../../components/Minnie/MinnieAvatar';
 import HistoryService from '../../services/HistoryService';
 import CalendarView from '../../components/CalendarView';
-import { DailyLog } from '../../types';
+import StatsService from '../../services/StatsService';
+import { DailyLog, MoodType } from '../../types';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +30,7 @@ export default function ProgressScreen() {
     const [historyLogs, setHistoryLogs] = useState<DailyLog[]>([]);
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(true);
+    const [streak, setStreak] = useState(0);
 
     // Load data when screen comes into focus
     useFocusEffect(
@@ -49,6 +51,11 @@ export default function ProgressScreen() {
             }
         }
         setHistoryLogs(logs);
+
+        // Calculate Streak
+        const currentStreak = StatsService.calculateCurrentStreak(logs);
+        setStreak(currentStreak);
+
         setLoading(false);
     };
 
@@ -66,8 +73,8 @@ export default function ProgressScreen() {
             const log = historyLogs.find(l => l.date === dateStr);
 
             days.push(d.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0));
-            steps.push(log ? log.steps : 0);
-            water.push(log ? log.waterIntake : 0);
+            steps.push(log ? (log.steps || 0) : 0);
+            water.push(log ? (log.waterIntake || 0) : 0);
             if (log?.weight) weight.push(log.weight);
         }
 
@@ -78,12 +85,14 @@ export default function ProgressScreen() {
 
     // Calculate stats
     const calculateStats = () => {
-        const totalSteps = weeklyData.steps.reduce((a, b) => a + b, 0);
+        const totalSteps = weeklyData.steps.reduce((a, b) => a + (b || 0), 0);
         const avgSteps = Math.round(totalSteps / 7);
 
         // Weight change
         const currentWeight = state.user?.currentWeight || 0;
-        const startWeight = weeklyData.weight.length > 0 ? weeklyData.weight[0] : currentWeight;
+        // Filter out 0 or undefined weights
+        const validWeights = weeklyData.weight.filter(w => w && w > 0);
+        const startWeight = validWeights.length > 0 ? validWeights[0] : currentWeight;
         const weightChange = currentWeight - startWeight;
 
         // Mood breakdown from history
@@ -101,13 +110,20 @@ export default function ProgressScreen() {
         })).sort((a, b) => b.count - a.count);
 
         return {
-            avgSteps,
-            weightChange: parseFloat(weightChange.toFixed(1)),
+            avgSteps: isNaN(avgSteps) ? 0 : avgSteps,
+            weightChange: isNaN(weightChange) ? 0 : parseFloat(weightChange.toFixed(1)),
             moodBreakdown
         };
     };
 
     const stats = calculateStats();
+
+    const selectedLog = historyLogs.find(l => l.date === selectedDate);
+
+    // Safety check for step goal to avoid % NaN
+    const selectedStepGoal = selectedLog?.stepGoal || state.user?.stepGoal || 7000;
+    const selectedSteps = selectedLog?.steps || 0;
+    const selectedProgress = Math.min((selectedSteps / selectedStepGoal) * 100, 100);
 
     const getMoodColor = (mood: string) => {
         switch (mood) {
@@ -119,8 +135,17 @@ export default function ProgressScreen() {
         }
     };
 
-    // Render logic...
-    // (Helper render functions remain same or slightly adapted)
+    const getMoodEmoji = (mood?: string) => {
+        switch (mood) {
+            case 'happy': return '😊';
+            case 'sad': return '😔';
+            case 'stressed': return '😫';
+            case 'energetic': return '⚡';
+            case 'bored': return '😐';
+            case 'calm': return '😌';
+            default: return '❓';
+        }
+    };
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -135,6 +160,20 @@ export default function ProgressScreen() {
                     <MinnieAvatar state="happy" size="small" animated />
                 </View>
 
+                {/* Summary Cards Row 1: Streak & Steps */}
+                <View style={styles.summaryRow}>
+                    <View style={[styles.summaryCard, styles.streakCard]}>
+                        <Text style={styles.summaryIcon}>🔥</Text>
+                        <Text style={styles.summaryValue}>{streak} Days</Text>
+                        <Text style={styles.summaryLabel}>Current Streak</Text>
+                    </View>
+                    <View style={[styles.summaryCard, styles.stepsCard]}>
+                        <Text style={styles.summaryIcon}>👟</Text>
+                        <Text style={styles.summaryValue}>{stats.avgSteps.toLocaleString()}</Text>
+                        <Text style={styles.summaryLabel}>Avg. Steps</Text>
+                    </View>
+                </View>
+
                 {/* Calendar View */}
                 <View style={styles.chartCard}>
                     <Text style={styles.chartTitle}>📆 Consistency Calendar</Text>
@@ -145,27 +184,58 @@ export default function ProgressScreen() {
                     />
                 </View>
 
-                {/* Summary Cards */}
-                <View style={styles.summaryRow}>
-                    <View style={[styles.summaryCard, styles.weightCard]}>
-                        <Text style={styles.summaryIcon}>⚖️</Text>
-                        <Text style={[styles.summaryValue, stats.weightChange < 0 && styles.positive]}>
-                            {stats.weightChange > 0 ? '+' : ''}{stats.weightChange} kg
+                {/* Daily Detail Card (Based on Selection) */}
+                <View style={styles.chartCard}>
+                    <View style={styles.detailHeader}>
+                        <Text style={styles.chartTitle}>
+                            📋 Details: {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                         </Text>
-                        <Text style={styles.summaryLabel}>Weekly Change</Text>
+                        {selectedLog ? (
+                            <Text style={[styles.statusBadge, selectedSteps >= selectedStepGoal ? styles.statusBadgeSuccess : styles.statusBadgePending]}>
+                                {selectedSteps >= selectedStepGoal ? 'Goal Met' : 'In Progress'}
+                            </Text>
+                        ) : (
+                            <Text style={styles.statusBadge}>No Data</Text>
+                        )}
                     </View>
-                    <View style={[styles.summaryCard, styles.stepsCard]}>
-                        <Text style={styles.summaryIcon}>👟</Text>
-                        <Text style={styles.summaryValue}>{stats.avgSteps.toLocaleString()}</Text>
-                        <Text style={styles.summaryLabel}>Avg. Steps</Text>
-                    </View>
+
+                    {selectedLog ? (
+                        <View style={styles.detailGrid}>
+                            <View style={styles.detailItem}>
+                                <Text style={styles.detailLabel}>Steps</Text>
+                                <Text style={styles.detailValue}>{selectedSteps.toLocaleString()}</Text>
+                                <View style={styles.progressBarBg}>
+                                    <View style={[styles.progressBarFill, { width: `${selectedProgress}%` }]} />
+                                </View>
+                            </View>
+                            <View style={styles.detailItem}>
+                                <Text style={styles.detailLabel}>Mood</Text>
+                                <Text style={styles.detailValue}>
+                                    {getMoodEmoji(selectedLog.mood)} {selectedLog.mood ? selectedLog.mood.charAt(0).toUpperCase() + selectedLog.mood.slice(1) : '-'}
+                                </Text>
+                            </View>
+                            <View style={styles.detailItem}>
+                                <Text style={styles.detailLabel}>Sleep</Text>
+                                <Text style={styles.detailValue}>
+                                    {selectedLog.sleepHours ? `${selectedLog.sleepHours}h` : '-'}
+                                </Text>
+                            </View>
+                            <View style={styles.detailItem}>
+                                <Text style={styles.detailLabel}>Water</Text>
+                                <Text style={styles.detailValue}>
+                                    {selectedLog.waterIntake ? `${(selectedLog.waterIntake / 1000).toFixed(1)}L` : '-'}
+                                </Text>
+                            </View>
+                        </View>
+                    ) : (
+                        <Text style={styles.noDataText}>No activity logged for this day.</Text>
+                    )}
                 </View>
 
                 {/* Steps Chart */}
                 <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>👟 Weekly Steps</Text>
+                    <Text style={styles.chartTitle}>📊 Weekly Activity</Text>
                     <View style={styles.chartWrapper}>
-                        {/* Reusing existing renderBarChart logic but with weeklyData.steps */}
                         <View style={styles.barChart}>
                             {weeklyData.steps.map((value, index) => (
                                 <View key={index} style={styles.barColumn}>
@@ -204,7 +274,7 @@ export default function ProgressScreen() {
                 <View style={styles.insightCard}>
                     <MinnieAvatar state="thinking" size="medium" animated />
                     <View style={styles.insightContent}>
-                        <Text style={styles.insightTitle}>📊 Minnie's Insights</Text>
+                        <Text style={styles.insightTitle}>✨ Minnie's Insights</Text>
                         <Text style={styles.insightText}>
                             {stats.avgSteps > 7000
                                 ? "You're crushing your step goals this week! Keep that momentum going! 🔥"
@@ -240,31 +310,7 @@ const styles = StyleSheet.create({
         fontWeight: Typography.fontWeight.bold,
         color: Colors.textPrimary,
     },
-    timeSelector: {
-        flexDirection: 'row',
-        backgroundColor: Colors.background,
-        borderRadius: BorderRadius.lg,
-        padding: Spacing.xs,
-        marginBottom: Spacing.md,
-    },
-    timeButton: {
-        flex: 1,
-        paddingVertical: Spacing.sm,
-        alignItems: 'center',
-        borderRadius: BorderRadius.md,
-    },
-    timeButtonActive: {
-        backgroundColor: Colors.primary,
-    },
-    timeButtonText: {
-        fontSize: Typography.fontSize.sm,
-        color: Colors.textSecondary,
-        fontWeight: Typography.fontWeight.medium,
-    },
-    timeButtonTextActive: {
-        color: Colors.textLight,
-        fontWeight: Typography.fontWeight.semibold,
-    },
+    // ... Legacy styles kept for compatibility ...
     summaryRow: {
         flexDirection: 'row',
         gap: Spacing.sm,
@@ -278,13 +324,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         ...Shadows.sm,
     },
-    weightCard: {
+    streakCard: {
         borderLeftWidth: 4,
-        borderLeftColor: Colors.primary,
+        borderLeftColor: Colors.secondary,
     },
     stepsCard: {
         borderLeftWidth: 4,
         borderLeftColor: Colors.activity,
+    },
+    weightCard: {
+        borderLeftWidth: 4,
+        borderLeftColor: Colors.primary,
     },
     summaryIcon: {
         fontSize: 24,
@@ -294,9 +344,6 @@ const styles = StyleSheet.create({
         fontSize: Typography.fontSize.xl,
         fontWeight: Typography.fontWeight.bold,
         color: Colors.textPrimary,
-    },
-    positive: {
-        color: Colors.activity,
     },
     summaryLabel: {
         fontSize: Typography.fontSize.xs,
@@ -315,38 +362,6 @@ const styles = StyleSheet.create({
         fontWeight: Typography.fontWeight.semibold,
         color: Colors.textPrimary,
         marginBottom: Spacing.md,
-    },
-    chartContainer: {
-        height: 100,
-        marginBottom: Spacing.md,
-    },
-    weightLine: {
-        flexDirection: 'row',
-        height: 80,
-        alignItems: 'flex-end',
-    },
-    weightPoint: {
-        flex: 1,
-        height: '100%',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-    },
-    dot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: Colors.primary,
-        position: 'absolute',
-    },
-    chartLabels: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    chartLabel: {
-        fontSize: 10,
-        color: Colors.textTertiary,
-        flex: 1,
-        textAlign: 'center',
     },
     chartWrapper: {
         height: 120,
@@ -371,48 +386,6 @@ const styles = StyleSheet.create({
     },
     barLabel: {
         fontSize: 10,
-        color: Colors.textTertiary,
-    },
-    chartInsight: {
-        fontSize: Typography.fontSize.sm,
-        color: Colors.activity,
-        textAlign: 'center',
-        marginTop: Spacing.sm,
-    },
-    heatmapGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 4,
-        marginBottom: Spacing.md,
-    },
-    heatmapCell: {
-        width: (width - Spacing.base * 2 - Spacing.lg * 2 - 24) / 7,
-        aspectRatio: 1,
-        borderRadius: 4,
-    },
-    heatmapCompleted: {
-        backgroundColor: Colors.activity,
-    },
-    heatmapMissed: {
-        backgroundColor: Colors.border,
-    },
-    heatmapLegend: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        gap: Spacing.lg,
-    },
-    legendItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    legendDot: {
-        width: 12,
-        height: 12,
-        borderRadius: 2,
-        marginRight: Spacing.xs,
-    },
-    legendText: {
-        fontSize: Typography.fontSize.xs,
         color: Colors.textTertiary,
     },
     moodBreakdown: {
@@ -453,33 +426,69 @@ const styles = StyleSheet.create({
         color: Colors.textSecondary,
         lineHeight: 20,
     },
-    achievementsCard: {
-        backgroundColor: Colors.background,
-        borderRadius: BorderRadius.xl,
-        padding: Spacing.lg,
-        ...Shadows.sm,
+    // New Styles for Daily Detail
+    detailHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: Spacing.md,
     },
-    achievementsList: {
+    statusBadge: {
+        fontSize: Typography.fontSize.xs,
+        fontWeight: Typography.fontWeight.bold,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: 2,
+        borderRadius: BorderRadius.sm,
+        overflow: 'hidden',
+        color: Colors.textLight,
+        backgroundColor: Colors.textTertiary,
+    },
+    statusBadgeSuccess: {
+        backgroundColor: Colors.activity,
+    },
+    statusBadgePending: {
+        backgroundColor: Colors.primary,
+    },
+    detailGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: Spacing.md,
     },
-    achievement: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    detailItem: {
+        width: '47%',
+        backgroundColor: Colors.surfaceSecondary,
+        padding: Spacing.md,
+        borderRadius: BorderRadius.lg,
     },
-    achievementIcon: {
-        fontSize: 28,
-        marginRight: Spacing.md,
+    detailLabel: {
+        fontSize: Typography.fontSize.xs,
+        color: Colors.textSecondary,
+        marginBottom: Spacing.xs,
     },
-    achievementInfo: {
-        flex: 1,
-    },
-    achievementTitle: {
-        fontSize: Typography.fontSize.base,
-        fontWeight: Typography.fontWeight.semibold,
+    detailValue: {
+        fontSize: Typography.fontSize.lg,
+        fontWeight: Typography.fontWeight.bold,
         color: Colors.textPrimary,
+        marginBottom: Spacing.xs,
     },
-    achievementDate: {
-        fontSize: Typography.fontSize.sm,
+    progressBarBg: {
+        height: 4,
+        backgroundColor: Colors.border,
+        borderRadius: 2,
+        width: '100%',
+    },
+    progressBarFill: {
+        height: '100%',
+        backgroundColor: Colors.activity,
+        borderRadius: 2,
+    },
+    noDataText: {
+        textAlign: 'center',
         color: Colors.textTertiary,
+        fontStyle: 'italic',
+        marginTop: Spacing.sm,
+    },
+    positive: {
+        color: Colors.activity,
     },
 });

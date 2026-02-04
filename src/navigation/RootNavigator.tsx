@@ -14,6 +14,9 @@ import TabNavigator from './TabNavigator';
 import WalkTrackerScreen from '../screens/Activity/WalkTrackerScreen';
 import LogActivityScreen from '../screens/Log/LogActivityScreen';
 
+import CreateGroupScreen from '../screens/Social/CreateGroupScreen';
+import GroupDetailScreen from '../screens/Social/GroupDetailScreen';
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
@@ -54,6 +57,21 @@ export default function RootNavigator() {
                         options={{
                             presentation: 'modal',
                             animation: 'slide_from_bottom',
+                        }}
+                    />
+                    <Stack.Screen
+                        name="CreateGroup"
+                        component={CreateGroupScreen}
+                        options={{
+                            presentation: 'modal',
+                            animation: 'slide_from_bottom',
+                        }}
+                    />
+                    <Stack.Screen
+                        name="GroupDetail"
+                        component={GroupDetailScreen}
+                        options={{
+                            animation: 'slide_from_right',
                         }}
                     />
                 </>

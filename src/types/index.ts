@@ -139,6 +139,7 @@ export type RootTabParamList = {
     Log: undefined;
     Coach: undefined;
     Progress: undefined;
+    Social: undefined;
     Profile: undefined;
     Settings: undefined;
 };
@@ -149,6 +150,8 @@ export type RootStackParamList = {
     WalkTracker: undefined;
     LogActivity: { type?: ActivityType };
     AchievementDetail: { achievement: Achievement };
+    GroupDetail: { groupId: string };
+    CreateGroup: undefined;
 };
 
 // Onboarding Step
@@ -191,4 +194,44 @@ export interface ScheduledNudge {
     message: string;
     scheduledTime: Date;
     minnieState: MinnieState;
+}
+
+// Social & Group Challenges
+export interface GroupMember {
+    userId: string;
+    name: string;
+    avatarStyle: string;
+    joinedAt: string;
+    isAdmin: boolean;
+    lastActiveAt?: string;
+    stats?: {
+        stepsToday: number;
+        streak: number;
+        challengeProgress: number;
+    };
+}
+
+export interface SocialChallenge {
+    id: string;
+    title: string;
+    description: string;
+    type: 'steps' | 'consistency' | 'sleep' | 'hydration';
+    targetValue: number;
+    durationDays: number;
+    startDate: string;
+    endDate: string;
+    status: 'active' | 'completed' | 'upcoming';
+    participants?: Record<string, number>; // userId -> progress
+    winnerUserId?: string;
+}
+
+export interface ChallengeGroup {
+    id: string;
+    name: string;
+    inviteCode: string;
+    members: GroupMember[];
+    activeChallenge: SocialChallenge | null;
+    pastChallenges: SocialChallenge[];
+    createdAt: string;
+    createdBy: string;
 }

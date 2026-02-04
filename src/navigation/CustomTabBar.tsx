@@ -78,6 +78,7 @@ const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => 
                 else if (route.name === 'Log') iconText = '➕'; // Regular tab icon
                 else if (route.name === 'Coach') iconText = '💬';
                 else if (route.name === 'Progress') iconText = '📊';
+                else if (route.name === 'Social') iconText = '👥';
                 else if (route.name === 'Settings') iconText = '⚙️';
 
                 return (
