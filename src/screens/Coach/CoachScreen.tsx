@@ -290,159 +290,163 @@ export default function CoachScreen() {
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-            <KeyboardAvoidingView ... >
-            {/* Header with Minnie */}
-            <View style={styles.header}>
-                <MinnieAvatar state={state.minnieState} size="medium" animated />
-                <View style={styles.headerText}>
-                    <Text style={styles.headerTitle}>Chat with Minnie</Text>
-                    <Text style={styles.headerSubtitle}>Your wellness companion</Text>
-                </View>
-                <View style={{ flex: 1 }} />
-                <TouchableOpacity
-                    style={styles.ttsButton}
-                    onPress={toggleTts}
-                >
-                    <Text style={styles.ttsIcon}>{ttsEnabled ? '🔊' : '🔇'}</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Messages */}
-            <ScrollView
-                ref={scrollViewRef}
-                style={styles.messagesContainer}
-                contentContainerStyle={styles.messagesContent}
-                showsVerticalScrollIndicator={false}
-                onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+            <KeyboardAvoidingView
+                style={styles.keyboardView}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
-                {messages.map((msg) => (
-                    <View
-                        key={msg.id}
-                        style={[
-                            styles.messageBubble,
-                            msg.sender === 'user' ? styles.userBubble : styles.minnieBubble,
-                        ]}
+                {/* Header with Minnie */}
+                <View style={styles.header}>
+                    <MinnieAvatar state={state.minnieState} size="medium" animated />
+                    <View style={styles.headerText}>
+                        <Text style={styles.headerTitle}>Chat with Minnie</Text>
+                        <Text style={styles.headerSubtitle}>Your wellness companion</Text>
+                    </View>
+                    <View style={{ flex: 1 }} />
+                    <TouchableOpacity
+                        style={styles.ttsButton}
+                        onPress={toggleTts}
                     >
-                        {msg.sender === 'minnie' && (
-                            <View style={styles.minnieAvatarSmall}>
-                                <MinnieAvatar
-                                    state={isListening && msg.id === Date.now() ? 'listening' : (msg.minnieAvatarState || 'happy')}
-                                    size="small"
-                                    animated={false}
-                                />
-                            </View>
-                        )}
+                        <Text style={styles.ttsIcon}>{ttsEnabled ? '🔊' : '🔇'}</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Messages */}
+                <ScrollView
+                    ref={scrollViewRef}
+                    style={styles.messagesContainer}
+                    contentContainerStyle={styles.messagesContent}
+                    showsVerticalScrollIndicator={false}
+                    onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+                >
+                    {messages.map((msg) => (
                         <View
+                            key={msg.id}
                             style={[
-                                styles.messageContent,
-                                msg.sender === 'user' ? styles.userContent : styles.minnieContent,
+                                styles.messageBubble,
+                                msg.sender === 'user' ? styles.userBubble : styles.minnieBubble,
                             ]}
                         >
-                            <Text
+                            {msg.sender === 'minnie' && (
+                                <View style={styles.minnieAvatarSmall}>
+                                    <MinnieAvatar
+                                        state={isListening && msg.id === Date.now() ? 'listening' : (msg.minnieAvatarState || 'happy')}
+                                        size="small"
+                                        animated={false}
+                                    />
+                                </View>
+                            )}
+                            <View
                                 style={[
-                                    styles.messageText,
-                                    msg.sender === 'user' && styles.userText,
+                                    styles.messageContent,
+                                    msg.sender === 'user' ? styles.userContent : styles.minnieContent,
                                 ]}
                             >
-                                {msg.message}
-                            </Text>
-                            <Text style={styles.messageTime}>{formatTime(msg.timestamp)}</Text>
+                                <Text
+                                    style={[
+                                        styles.messageText,
+                                        msg.sender === 'user' && styles.userText,
+                                    ]}
+                                >
+                                    {msg.message}
+                                </Text>
+                                <Text style={styles.messageTime}>{formatTime(msg.timestamp)}</Text>
+                            </View>
                         </View>
-                    </View>
-                ))}
+                    ))}
 
-                {/* Typing indicator */}
-                {isLoading && (
-                    <View style={[styles.messageBubble, styles.minnieBubble]}>
-                        <View style={styles.minnieAvatarSmall}>
-                            <MinnieAvatar state="thinking" size="small" animated />
+                    {/* Typing indicator */}
+                    {isLoading && (
+                        <View style={[styles.messageBubble, styles.minnieBubble]}>
+                            <View style={styles.minnieAvatarSmall}>
+                                <MinnieAvatar state="thinking" size="small" animated />
+                            </View>
+                            <View style={[styles.messageContent, styles.minnieContent]}>
+                                <Text style={styles.typingText}>Minnie is typing...</Text>
+                            </View>
                         </View>
-                        <View style={[styles.messageContent, styles.minnieContent]}>
-                            <Text style={styles.typingText}>Minnie is typing...</Text>
-                        </View>
-                    </View>
-                )}
-            </ScrollView>
+                    )}
+                </ScrollView>
 
-            {/* Bottom Section - Wrapped for tab bar spacing */}
-            <View style={styles.bottomSection}>
-                {/* Quick Responses */}
-                <View style={styles.quickResponses}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {quickResponses.map((resp, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={styles.quickResponseButton}
-                                onPress={() => handleQuickResponse(resp.text)}
-                            >
-                                <Text style={styles.quickResponseEmoji}>{resp.emoji}</Text>
-                                <Text style={styles.quickResponseText}>{resp.text}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
+                {/* Bottom Section - Wrapped for tab bar spacing */}
+                <View style={styles.bottomSection}>
+                    {/* Quick Responses */}
+                    <View style={styles.quickResponses}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            {quickResponses.map((resp, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={styles.quickResponseButton}
+                                    onPress={() => handleQuickResponse(resp.text)}
+                                >
+                                    <Text style={styles.quickResponseEmoji}>{resp.emoji}</Text>
+                                    <Text style={styles.quickResponseText}>{resp.text}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+
+                    {/* Input */}
+                    <View style={[styles.inputContainer, !hasApiKey && styles.inputContainerDisabled]}>
+                        <TouchableOpacity
+                            style={[styles.voiceButton, isListening && styles.voiceButtonActive]}
+                            onPress={toggleListening}
+                            disabled={!hasApiKey}
+                        >
+                            <Text style={styles.voiceButtonText}>{isListening ? '🛑' : '🎙️'}</Text>
+                        </TouchableOpacity>
+                        <TextInput
+                            style={styles.input}
+                            placeholder={hasApiKey ? "Ask Minnie anything..." : "Configure AI key to chat"}
+                            placeholderTextColor={Colors.textTertiary}
+                            value={inputText}
+                            onChangeText={setInputText}
+                            multiline
+                            maxLength={500}
+                            editable={hasApiKey && !isLoading}
+                        />
+                        <TouchableOpacity
+                            style={[styles.sendButton, (!inputText.trim() || isLoading || !hasApiKey) && styles.sendButtonDisabled]}
+                            onPress={handleSend}
+                            disabled={!inputText.trim() || isLoading || !hasApiKey}
+                        >
+                            {isLoading ? (
+                                <ActivityIndicator size="small" color={Colors.textLight} />
+                            ) : (
+                                <Text style={styles.sendButtonText}>➤</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Setup Prompt */}
+                    {!hasApiKey && (
+                        <TouchableOpacity
+                            style={styles.setupBanner}
+                            onPress={() => setShowApiKeyModal(true)}
+                        >
+                            <Text style={styles.setupIcon}>🔑</Text>
+                            <Text style={styles.setupText}>Tap to configure OpenAI API Key</Text>
+                            <Text style={styles.setupArrow}>→</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
-                {/* Input */}
-                <View style={[styles.inputContainer, !hasApiKey && styles.inputContainerDisabled]}>
-                    <TouchableOpacity
-                        style={[styles.voiceButton, isListening && styles.voiceButtonActive]}
-                        onPress={toggleListening}
-                        disabled={!hasApiKey}
-                    >
-                        <Text style={styles.voiceButtonText}>{isListening ? '🛑' : '🎙️'}</Text>
-                    </TouchableOpacity>
-                    <TextInput
-                        style={styles.input}
-                        placeholder={hasApiKey ? "Ask Minnie anything..." : "Configure AI key to chat"}
-                        placeholderTextColor={Colors.textTertiary}
-                        value={inputText}
-                        onChangeText={setInputText}
-                        multiline
-                        maxLength={500}
-                        editable={hasApiKey && !isLoading}
-                    />
-                    <TouchableOpacity
-                        style={[styles.sendButton, (!inputText.trim() || isLoading || !hasApiKey) && styles.sendButtonDisabled]}
-                        onPress={handleSend}
-                        disabled={!inputText.trim() || isLoading || !hasApiKey}
-                    >
-                        {isLoading ? (
-                            <ActivityIndicator size="small" color={Colors.textLight} />
-                        ) : (
-                            <Text style={styles.sendButtonText}>➤</Text>
-                        )}
-                    </TouchableOpacity>
-                </View>
 
-                {/* Setup Prompt */}
-                {!hasApiKey && (
-                    <TouchableOpacity
-                        style={styles.setupBanner}
-                        onPress={() => setShowApiKeyModal(true)}
-                    >
-                        <Text style={styles.setupIcon}>🔑</Text>
-                        <Text style={styles.setupText}>Tap to configure OpenAI API Key</Text>
-                        <Text style={styles.setupArrow}>→</Text>
-                    </TouchableOpacity>
-                )}
-            </View>
-
-
-            <ApiKeyModal
-                visible={showApiKeyModal}
-                onClose={() => setShowApiKeyModal(false)}
-                onSaved={() => {
-                    setHasApiKey(true);
-                    setMessages(prev => [...prev, {
-                        id: Date.now(),
-                        timestamp: Date.now(),
-                        sender: 'minnie',
-                        message: "Yay! My brain is connected! I'm ready to help you on your journey! 🚀",
-                        minnieAvatarState: 'happy'
-                    }]);
-                }}
-            />
-        </KeyboardAvoidingView>
+                <ApiKeyModal
+                    visible={showApiKeyModal}
+                    onClose={() => setShowApiKeyModal(false)}
+                    onSaved={() => {
+                        setHasApiKey(true);
+                        setMessages(prev => [...prev, {
+                            id: Date.now(),
+                            timestamp: Date.now(),
+                            sender: 'minnie',
+                            message: "Yay! My brain is connected! I'm ready to help you on your journey! 🚀",
+                            minnieAvatarState: 'happy'
+                        }]);
+                    }}
+                />
+            </KeyboardAvoidingView>
         </SafeAreaView >
     );
 }
