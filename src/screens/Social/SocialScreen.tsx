@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } fr
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 // Removed LinearGradient to avoid build issues
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+// import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { Colors, Typography, Spacing } from '../../constants/theme';
 import GroupService from '../../services/GroupService';
@@ -56,7 +56,7 @@ const SocialScreen = () => {
                 <View style={styles.cardHeader}>
                     <Text style={styles.groupName}>{item.name}</Text>
                     <View style={styles.memberBadge}>
-                        <Icon name="account-group" size={16} color={Colors.textSecondary} />
+                        <Text style={{ fontSize: 16 }}>👥</Text>
                         <Text style={styles.memberCount}>{item.members.length}</Text>
                     </View>
                 </View>
@@ -88,23 +88,21 @@ const SocialScreen = () => {
                 renderItem={renderGroupItem}
                 keyExtractor={item => item.id}
                 contentContainerStyle={styles.listContent}
-            // ...
-            />
-            ListEmptyComponent={
-                <View style={styles.emptyState}>
-                    <Icon name="trophy-outline" size={64} color={Colors.primary} style={{ opacity: 0.5 }} />
-                    <Text style={styles.emptyTitle}>No Groups Yet</Text>
-                    <Text style={styles.emptyText}>Join a group or create one to start challenging your friends!</Text>
-                    <TouchableOpacity style={styles.joinDemoButton} onPress={handleJoinGroup}>
-                        <Text style={styles.joinDemoText}>Join Global Challenge (Demo)</Text>
-                    </TouchableOpacity>
-                </View>
-            }
-            refreshControl={<RefreshControl refreshing={loading} onRefresh={loadGroups} tintColor={Colors.primary} />}
+                ListEmptyComponent={
+                    <View style={styles.emptyState}>
+                        <Text style={{ fontSize: 64, opacity: 0.5 }}>🏆</Text>
+                        <Text style={styles.emptyTitle}>No Groups Yet</Text>
+                        <Text style={styles.emptyText}>Join a group or create one to start challenging your friends!</Text>
+                        <TouchableOpacity style={styles.joinDemoButton} onPress={handleJoinGroup}>
+                            <Text style={styles.joinDemoText}>Join Global Challenge (Demo)</Text>
+                        </TouchableOpacity>
+                    </View>
+                }
+                refreshControl={<RefreshControl refreshing={loading} onRefresh={loadGroups} tintColor={Colors.primary} />}
             />
 
             <TouchableOpacity style={styles.fab} onPress={handleCreateGroup}>
-                <Icon name="plus" size={24} color="#FFF" />
+                <Text style={{ fontSize: 24, color: '#FFF' }}>➕</Text>
                 <Text style={styles.fabText}>New Group</Text>
             </TouchableOpacity>
         </View>
