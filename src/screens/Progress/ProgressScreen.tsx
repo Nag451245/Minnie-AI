@@ -50,11 +50,18 @@ export default function ProgressScreen() {
                 logs.push(state.todayLog);
             }
         }
-        setHistoryLogs(logs);
+        // Sanitize logs to prevent crashes
+        const validLogs = logs.filter(l => l && l.date && !isNaN(new Date(l.date).getTime()));
+        setHistoryLogs(validLogs);
 
-        // Calculate Streak
-        const currentStreak = StatsService.calculateCurrentStreak(logs);
-        setStreak(currentStreak);
+        // Calculate Streak safely
+        try {
+            const currentStreak = StatsService.calculateCurrentStreak(validLogs);
+            setStreak(currentStreak);
+        } catch (e) {
+            console.error("Error calculating streak:", e);
+            setStreak(0);
+        }
 
         setLoading(false);
     };

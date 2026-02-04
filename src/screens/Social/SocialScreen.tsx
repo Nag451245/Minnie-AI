@@ -83,21 +83,24 @@ const SocialScreen = () => {
             </View>
 
             <FlatList
+                style={{ flex: 1 }}
                 data={groups}
                 renderItem={renderGroupItem}
                 keyExtractor={item => item.id}
                 contentContainerStyle={styles.listContent}
-                ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <Icon name="trophy-outline" size={64} color={Colors.primary} style={{ opacity: 0.5 }} />
-                        <Text style={styles.emptyTitle}>No Groups Yet</Text>
-                        <Text style={styles.emptyText}>Join a group or create one to start challenging your friends!</Text>
-                        <TouchableOpacity style={styles.joinDemoButton} onPress={handleJoinGroup}>
-                            <Text style={styles.joinDemoText}>Join Global Challenge (Demo)</Text>
-                        </TouchableOpacity>
-                    </View>
-                }
-                refreshControl={<RefreshControl refreshing={loading} onRefresh={loadGroups} tintColor={Colors.primary} />}
+            // ...
+            />
+            ListEmptyComponent={
+                <View style={styles.emptyState}>
+                    <Icon name="trophy-outline" size={64} color={Colors.primary} style={{ opacity: 0.5 }} />
+                    <Text style={styles.emptyTitle}>No Groups Yet</Text>
+                    <Text style={styles.emptyText}>Join a group or create one to start challenging your friends!</Text>
+                    <TouchableOpacity style={styles.joinDemoButton} onPress={handleJoinGroup}>
+                        <Text style={styles.joinDemoText}>Join Global Challenge (Demo)</Text>
+                    </TouchableOpacity>
+                </View>
+            }
+            refreshControl={<RefreshControl refreshing={loading} onRefresh={loadGroups} tintColor={Colors.primary} />}
             />
 
             <TouchableOpacity style={styles.fab} onPress={handleCreateGroup}>
@@ -134,7 +137,7 @@ const styles = StyleSheet.create({
     },
     listContent: {
         padding: Spacing.md,
-        paddingBottom: 140,
+        paddingBottom: 200,
     },
     groupCard: {
         marginBottom: Spacing.md,
